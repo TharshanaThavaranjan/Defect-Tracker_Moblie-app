@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import Svg, { Path, Line, G, Circle, Text as SvgText } from 'react-native-svg';
 
 // Project list (should match DashboardScreen)
 const PROJECTS = [
@@ -164,6 +165,9 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           ]}>{project.risk}</Text>
         </View>
 
+        {/* Defect Severity Breakdown Heading */}
+        <Text style={styles.sectionHeading}>Defect Severity Breakdown</Text>
+
         {/* Defect Severity Breakdown */}
         <View style={{ marginBottom: 16 }}>
           {MOCK_DATA.defectSeverityBreakdown.map((sev, idx) => {
@@ -192,48 +196,87 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         </View>
 
         {/* Defect Density, Severity Index, Remark Ratio - vertical cards */}
-        <View style={{ marginBottom: 20 }}>
-          {/* Defect Density */}
-          <View style={styles.metricBigCard}>
-            <Text style={styles.metricBigTitle}>Defect Density</Text>
-            <View style={styles.metricBigContent}>
-              <Text style={styles.metricBigLabel}>Defect Density: <Text style={{ color: '#F44336', fontWeight: 'bold' }}>{MOCK_DATA.defectDensity}</Text></Text>
-              {/* Gauge Placeholder */}
-              <View style={styles.gaugeWebPlaceholder}>
-                <View style={styles.gaugeWebArc} />
-                <View style={[styles.gaugeWebNeedle, { transform: [{ rotate: `${(MOCK_DATA.defectDensity / 10) * 120 - 60}deg` }] }]} />
-                <Text style={styles.gaugeWebMin}>0</Text>
-                <Text style={styles.gaugeWebMid}>7</Text>
-                <Text style={styles.gaugeWebMax}>10</Text>
-              </View>
+        <View style={styles.metricColumnFull}>
+          {/* Defect Density Gauge */}
+          <View style={styles.metricCardFull}>
+            <Text style={styles.metricTitleLeft}>Defect Density</Text>
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <Text style={styles.metricLabelCenter}>
+                Defect Density: <Text style={styles.metricValue}>{MOCK_DATA.defectDensity}</Text>
+              </Text>
+              <Svg width={160} height={90}>
+                {/* Arc: 180-degree semi-circle */}
+                <Path
+                  d="M 10 80 A 70 70 0 0 1 150 80"
+                  stroke="#2563eb"
+                  strokeWidth={6}
+                  fill="none"
+                />
+                {/* Pointer/Needle */}
+                <G origin="80,80" rotation={(MOCK_DATA.defectDensity / 10) * 180 - 90}>
+                  <Line
+                    x1="80"
+                    y1="80"
+                    x2="80"
+                    y2="20"
+                    stroke="#F44336"
+                    strokeWidth={4}
+                    strokeLinecap="round"
+                  />
+                </G>
+                {/* Center dot */}
+                <Circle cx="80" cy="80" r="6" fill="#222" />
+                {/* Tick labels */}
+                <SvgText
+                  x="10"
+                  y="90"
+                  fontSize="12"
+                  fill="#222"
+                  textAnchor="middle"
+                >0</SvgText>
+                <SvgText
+                  x="80"
+                  y="18"
+                  fontSize="12"
+                  fill="#222"
+                  textAnchor="middle"
+                >7</SvgText>
+                <SvgText
+                  x="150"
+                  y="90"
+                  fontSize="12"
+                  fill="#222"
+                  textAnchor="middle"
+                >10</SvgText>
+              </Svg>
             </View>
           </View>
-          {/* Defect Severity Index */}
-          <View style={styles.metricBigCard}>
-            <Text style={styles.metricBigTitle}>Defect Severity Index</Text>
-            <View style={styles.metricBigContent}>
-              <View style={styles.severityBarWrap}>
-                <View style={styles.severityBarTrack} />
-                <View style={[styles.severityBarFill, { height: `${MOCK_DATA.defectSeverityIndex}%` }]} />
-                <Text style={styles.severityBarValue}>{MOCK_DATA.defectSeverityIndex}</Text>
+          {/* Defect Severity Index Vertical Bar */}
+          <View style={styles.metricCardFull}>
+            <Text style={styles.metricTitleLeft}>Defect Severity Index</Text>
+            <View style={styles.severityIndexContent}>
+              <View style={styles.barContainerWeb}>
+                <View style={styles.barTrackWeb}>
+                  <View style={[styles.barFillWeb, { height: `${MOCK_DATA.defectSeverityIndex}%` }]} />
+                </View>
+                <Text style={styles.barValueWeb}>{MOCK_DATA.defectSeverityIndex}</Text>
               </View>
-              <Text style={styles.metricBigSubLabel}>Weighted severity score (higher = more severe defects)</Text>
+              <Text style={styles.barLabelWeb}>Weighted severity score (higher = more severe defects)</Text>
             </View>
           </View>
-          {/* Defect to Remark Ratio */}
-          <View style={styles.metricBigCard}>
-            <Text style={styles.metricBigTitle}>Defect to Remark Ratio</Text>
-            <View style={styles.remarkRatioCard}>
-              <Text style={styles.remarkRatioValue}>{MOCK_DATA.defectToRemarkRatio}</Text>
-              <Text style={styles.remarkRatioLabel}>Defects per Remark</Text>
-              <View style={styles.remarkRatioBadge}><Text style={styles.remarkRatioBadgeText}>Critical</Text></View>
-              <View style={styles.remarkRatioBarWrap}>
-                <View style={styles.remarkRatioBar} />
+          {/* Defect to Remark Ratio (unchanged) */}
+          <View style={styles.metricCardFull}>
+            <Text style={styles.metricTitle}>Defect to Remark Ratio</Text>
+            <View style={styles.ratioCard}>
+              <Text style={styles.ratioValue}>{MOCK_DATA.defectToRemarkRatio}</Text>
+              <Text style={styles.ratioLabel}>Critical</Text>
+              <View style={styles.ratioBar}>
+                <View style={styles.ratioBarFill} />
               </View>
-              <View style={styles.remarkRatioBarLabels}>
-                <Text style={styles.remarkRatioBarLabel}>0.0</Text>
-                <Text style={styles.remarkRatioBarLabel}>0.5</Text>
-                <Text style={styles.remarkRatioBarLabel}>1.0</Text>
+              <View style={styles.ratioBarLabels}>
+                <Text style={styles.ratioBarLabelNum}>0.0</Text>
+                <Text style={styles.ratioBarLabelNum}>0.5</Text>
+                <Text style={styles.ratioBarLabelNum}>1.0</Text>
               </View>
             </View>
           </View>
@@ -860,6 +903,435 @@ const styles = StyleSheet.create({
   remarkRatioBarLabel: {
     fontSize: 12,
     color: '#888',
+  },
+  metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    gap: 12,
+  },
+  metricColumn: {
+    flexDirection: 'column',
+    gap: 18,
+    marginBottom: 18,
+  },
+  metricCardGauge: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 16,
+    marginHorizontal: 3,
+    minWidth: 120,
+    maxWidth: 300,
+  },
+  metricCardBar: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 16,
+    marginHorizontal: 3,
+    minWidth: 120,
+    maxWidth: 300,
+  },
+  metricTitleLeft: {
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginBottom: 8,
+    color: '#222',
+    textAlign: 'left',
+    alignSelf: 'flex-start',
+  },
+  metricLabelCenter: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 4,
+    color: '#222',
+    textAlign: 'center',
+    alignSelf: 'center',
+  },
+  metricValue: {
+    color: '#F44336',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  gaugeContent: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  gaugeContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  gaugeBase: {
+    width: 90,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    position: 'relative',
+  },
+  gaugeArcGreen: {
+    position: 'absolute',
+    width: 90,
+    height: 45,
+    borderTopLeftRadius: 90,
+    borderTopRightRadius: 0,
+    borderWidth: 8,
+    borderColor: 'green',
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    top: 0,
+    left: 0,
+    zIndex: 1,
+  },
+  gaugeArcYellow: {
+    position: 'absolute',
+    width: 90,
+    height: 45,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderWidth: 8,
+    borderColor: 'gold',
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    top: 0,
+    left: 30,
+    zIndex: 2,
+    transform: [{ rotate: '30deg' }],
+  },
+  gaugeArcRed: {
+    position: 'absolute',
+    width: 90,
+    height: 45,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 90,
+    borderWidth: 8,
+    borderColor: '#F44336',
+    borderLeftWidth: 0,
+    borderBottomWidth: 0,
+    top: 0,
+    left: 60,
+    zIndex: 3,
+    transform: [{ rotate: '60deg' }],
+  },
+  gaugePointer: {
+    position: 'absolute',
+    width: 2,
+    height: 38,
+    backgroundColor: '#222',
+    bottom: 6,
+    left: 44,
+    borderRadius: 2,
+    zIndex: 10,
+    transform: [{ rotate: '-90deg' }],
+  },
+  gaugeLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 90,
+    marginTop: 2,
+  },
+  gaugeLabelNum: {
+    fontSize: 11,
+    color: '#222',
+    fontWeight: 'bold',
+  },
+  severityIndexContent: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  barContainerWeb: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginTop: 8,
+    marginBottom: 4,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  barTrackWeb: {
+    width: 28,
+    height: 90,
+    backgroundColor: '#f0f1f6',
+    borderRadius: 14,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  barFillWeb: {
+    width: 28,
+    backgroundColor: '#F44336',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+  },
+  barValueWeb: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#F44336',
+    marginLeft: 8,
+    alignSelf: 'center',
+  },
+  barLabelWeb: {
+    fontSize: 12,
+    color: '#444',
+    marginTop: 4,
+    textAlign: 'center',
+    maxWidth: 160,
+  },
+  ratioCard: {
+    backgroundColor: '#fff4f4',
+    borderRadius: 14,
+    padding: 18,
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 6,
+    marginBottom: 2,
+    borderWidth: 1,
+    borderColor: '#fde0e0',
+  },
+  ratioValue: {
+    fontWeight: 'bold',
+    fontSize: 32,
+    color: '#222',
+    marginBottom: 2,
+  },
+  ratioLabel: {
+    fontSize: 15,
+    color: '#444',
+    marginBottom: 6,
+  },
+  remarkRatioBadge: {
+    backgroundColor: '#fde0e0',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginBottom: 8,
+  },
+  remarkRatioBadgeText: {
+    color: '#F44336',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  remarkRatioBarWrap: {
+    width: '100%',
+    height: 12,
+    backgroundColor: '#fde0e0',
+    borderRadius: 6,
+    marginTop: 4,
+    marginBottom: 2,
+    justifyContent: 'center',
+  },
+  remarkRatioBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#F44336',
+    borderRadius: 6,
+  },
+  remarkRatioBarLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 2,
+  },
+  remarkRatioBarLabel: {
+    fontSize: 12,
+    color: '#888',
+  },
+  ratioBar: {
+    width: '100%',
+    height: 12,
+    backgroundColor: '#fde0e0',
+    borderRadius: 6,
+    marginTop: 4,
+    marginBottom: 2,
+    justifyContent: 'center',
+  },
+  ratioBarFill: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#F44336',
+    borderRadius: 6,
+  },
+  ratioBarLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 2,
+  },
+  ratioBarLabelNum: {
+    fontSize: 12,
+    color: '#888',
+  },
+  metricColumnFull: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    gap: 18,
+    marginBottom: 18,
+  },
+  metricCardFull: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#d1d5db', // slightly darker for visibility
+    padding: 16,
+    marginBottom: 18,
+    minHeight: 0,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  sectionHeading: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#222',
+    marginBottom: 10,
+    marginLeft: 2,
+    marginTop: 8,
+  },
+  halfGaugeContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  halfGaugeBase: {
+    width: 140,
+    height: 70,
+    borderTopLeftRadius: 70,
+    borderTopRightRadius: 70,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  halfGaugeGreen: {
+    position: 'absolute',
+    width: 140,
+    height: 70,
+    borderTopLeftRadius: 70,
+    borderTopRightRadius: 0,
+    backgroundColor: 'green',
+    left: 0,
+    top: 0,
+    zIndex: 1,
+    transform: [{ skewX: '-30deg' }],
+  },
+  halfGaugeYellow: {
+    position: 'absolute',
+    width: 140,
+    height: 70,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    backgroundColor: 'gold',
+    left: 46,
+    top: 0,
+    zIndex: 2,
+    transform: [{ skewX: '0deg' }],
+  },
+  halfGaugeRed: {
+    position: 'absolute',
+    width: 140,
+    height: 70,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 70,
+    backgroundColor: '#F44336',
+    left: 93,
+    top: 0,
+    zIndex: 3,
+    transform: [{ skewX: '30deg' }],
+  },
+  halfGaugePointer: {
+    position: 'absolute',
+    width: 2,
+    height: 60,
+    backgroundColor: '#222',
+    bottom: 0,
+    left: 69,
+    borderRadius: 2,
+    zIndex: 10,
+    transform: [{ rotate: '-90deg' }],
+  },
+  speedometerContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  speedometerHalfCircle: {
+    width: 160,
+    height: 80,
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
+    overflow: 'hidden',
+    backgroundColor: '#eee',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  speedometerGreen: {
+    position: 'absolute',
+    width: 160,
+    height: 80,
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 0,
+    backgroundColor: 'green',
+    left: 0,
+    top: 0,
+    zIndex: 1,
+    transform: [{ skewX: '-30deg' }],
+  },
+  speedometerYellow: {
+    position: 'absolute',
+    width: 160,
+    height: 80,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    backgroundColor: 'gold',
+    left: 53,
+    top: 0,
+    zIndex: 2,
+    transform: [{ skewX: '0deg' }],
+  },
+  speedometerRed: {
+    position: 'absolute',
+    width: 160,
+    height: 80,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 80,
+    backgroundColor: '#F44336',
+    left: 106,
+    top: 0,
+    zIndex: 3,
+    transform: [{ skewX: '30deg' }],
+  },
+  speedometerPointer: {
+    position: 'absolute',
+    width: 4,
+    height: 68,
+    backgroundColor: '#222',
+    bottom: 0,
+    left: 78,
+    borderRadius: 2,
+    zIndex: 10,
+    transform: [{ rotate: '-90deg' }],
+  },
+  speedometerTicks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 160,
+    marginTop: 2,
   },
 });
 
