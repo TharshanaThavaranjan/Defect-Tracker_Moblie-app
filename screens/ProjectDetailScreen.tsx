@@ -404,7 +404,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             <Text style={{ fontSize: 17, color: '#222', fontWeight: '500', marginBottom: 8, textAlign: 'left' }}>Defect Density</Text>
             <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center', marginBottom: 8 }}>
               Defect Density: <Text style={{ color: '#FFC107' }}>{defectDensity.toFixed(2)}</Text>
-            </Text>
+              </Text>
             <View style={{ alignItems: 'center', marginTop: 8 }}>
               <Svg width={180} height={100}>
                 {/* Green arc */}
@@ -429,9 +429,9 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   );
                 })()}
                 {/* Tick labels */}
-                <SvgText x={20} y={105} fontSize="13" fill="#222" textAnchor="middle">0</SvgText>
-                <SvgText x={60} y={35} fontSize="13" fill="#222" textAnchor="middle" rotation="-20" origin="60,35">7</SvgText>
-                <SvgText x={120} y={35} fontSize="13" fill="#222" textAnchor="middle" rotation="20" origin="120,35">10</SvgText>
+                <SvgText x={20} y={105} fontSize="15" fill="#222" textAnchor="start" rotation="-90" origin="25,90">0</SvgText>
+                <SvgText x={60} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="-30" origin="84,3.5\5">7</SvgText>
+                <SvgText x={120} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="50" origin="100,50">10</SvgText>
               </Svg>
             </View>
           </View>
@@ -471,14 +471,14 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects Reopened Multiple Times</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <PieChart data={reopenedData} radius={35} cx={40} cy={40} />
+              <PieChart data={reopenedData} radius={95} cx={95} cy={95} />
             </View>
             <View style={{ marginTop: 10 }}>
               {reopenedData.map((item, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
                   <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
-                  <Text style={{ fontSize: 13 }}>{item.label}: {item.value} ({((item.value / reopenedData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1)}%)</Text>
-                </View>
+                  <Text style={{ fontSize: 15 }}>{item.label}: {item.value} ({((item.value / reopenedData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1)}%)</Text>
+          </View>
               ))}
             </View>
           </View>
@@ -486,26 +486,26 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defect Distribution by Type</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <PieChart data={defectTypeData} radius={40} cx={50} cy={50} />
-            </View>
+              <PieChart data={defectTypeData} radius={95} cx={95} cy={95} />
+        </View>
             <View style={{ marginTop: 10 }}>
               {defectTypeData.map((item, idx) => {
                 const total = defectTypeData.reduce((sum, d) => sum + d.value, 0);
                 return (
                   <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
                     <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
-                    <Text style={{ fontSize: 13 }}>
+                    <Text style={{ fontSize: 15 }}>
                       {item.label}: {item.value} ({((item.value / total) * 100).toFixed(1)}%)
                     </Text>
-                  </View>
+            </View>
                 );
               })}
-            </View>
+          </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, borderTopWidth: 1, borderColor: '#eee', paddingTop: 12 }}>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ fontWeight: 'bold', fontSize: 20 }}>{defectTypeData.reduce((sum, d) => sum + d.value, 0)}</Text>
                 <Text style={{ fontSize: 13, color: '#444' }}>Total Defects</Text>
-              </View>
+            </View>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ fontWeight: 'bold', fontSize: 20, color: '#4285F4' }}>
                   {Math.max(...defectTypeData.map(d => d.value))}
@@ -516,28 +516,28 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     {defectTypeData.reduce((a, b) => (a.value > b.value ? a : b)).label}
                   </Text>
                 </Text>
-              </View>
-            </View>
+          </View>
+        </View>
           </View>
           {/* Time to Find Defects */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Time to Find Defects</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <LineChart data={timeToFindData} labels={timeToFindLabels} width={320} height={140} />
+              <LineChart data={timeToFindData} labels={timeToFindLabels} width={400} height={240} />
             </View>
           </View>
           {/* Time to Fix Defects */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Time to Fix Defects</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <LineChart data={timeToFixData} labels={timeToFixLabels} width={320} height={140} color={'#00b894'} />
+              <LineChart data={timeToFixData} labels={timeToFixLabels} width={400} height={240} color={'#00b894'} />
             </View>
           </View>
           {/* Defects by Module */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects by Module</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <PieChart data={defectsByModuleData} radius={50} cx={60} cy={60} />
+              <PieChart data={defectsByModuleData} radius={95} cx={95} cy={95} />
             </View>
             <View style={{ marginTop: 10 }}>
               {defectsByModuleData.map((item, idx) => {
@@ -545,7 +545,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 return (
                   <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
                     <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
-                    <Text style={{ fontSize: 13 }}>
+                    <Text style={{ fontSize: 15 }}>
                       {item.label}{' '}
                       <Text style={{ fontWeight: 'bold' }}>{item.value}</Text>
                       {' '}({((item.value / total) * 100).toFixed(2)}%)
