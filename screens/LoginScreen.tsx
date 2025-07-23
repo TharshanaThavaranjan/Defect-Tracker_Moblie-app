@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import Feather from 'react-native-vector-icons/Feather';
 import CheckBox from '@react-native-community/checkbox';
+// import LinearGradient from 'react-native-linear-gradient';
 
 const DUMMY_USER = { email: 'admin', password: 'admin' };
 
@@ -25,14 +26,24 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.background}>
+      {/* Back Button at the very top */}
+      <View style={{ marginTop: 16 }} />
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.replace('Welcome')}>
+        <Text style={styles.backBtnText}>← Back</Text>
+      </TouchableOpacity>
       <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <Feather name="lock" size={48} color="#2563eb" />
+        {/* Attractive App Icon Circle */}
+        <View style={styles.appIconCircleShadow}>
+          <View style={styles.appIconCircleBorder}>
+            <View style={styles.appIconCircleGradient}>
+              <Text style={styles.appIconText}>DT</Text>
+            </View>
+          </View>
         </View>
         <View style={{ height: 16 }} />
         <Text style={styles.title}>DefectTracker Pro</Text>
         <Text style={styles.subtitle}>Sign in to your account</Text>
-        <Text style={styles.label}>Username</Text>
+        <Text style={styles.inputLabel}>Username</Text>
         <TextInput
           style={styles.input}
           placeholder="Enter your username"
@@ -40,7 +51,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           onChangeText={setEmail}
           autoCapitalize="none"
         />
-        <Text style={styles.label}>Password</Text>
+        <Text style={styles.inputLabel}>Password</Text>
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passwordInput}
@@ -71,6 +82,18 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           <Feather name="user" size={24} color="#fff" style={styles.signInIcon} />
           <Text style={styles.signInText}>Sign In</Text>
         </TouchableOpacity>
+        {/* Add Sign Up link at the bottom of the card */}
+        <View style={{ marginTop: 18, alignItems: 'center' }}>
+          <Text style={{ color: '#444' }}>
+            Don’t have an account?{' '}
+            <Text
+              style={{ color: '#2563eb', fontWeight: 'bold' }}
+              onPress={() => navigation.replace('Signup')}
+            >
+              Sign Up
+            </Text>
+          </Text>
+        </View>
         <View style={styles.demoBox}>
           <Text style={styles.demoTitle}>Demo Credentials:</Text>
           <Text style={styles.demoText}>Username: admin</Text>
@@ -127,7 +150,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '400',
   },
-  label: {
+  inputLabel: {
     alignSelf: 'flex-start',
     fontWeight: '600',
     color: '#222',
@@ -236,6 +259,62 @@ const styles = StyleSheet.create({
   demoText: {
     color: '#444',
     fontSize: 15,
+  },
+  backBtn: {
+    position: 'absolute',
+    top: 10, // Move closer to the top
+    left: 20,
+    zIndex: 10,
+    backgroundColor: '#e0e7ff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  backBtnText: {
+    color: '#2563eb',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  appIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 18,
+  },
+  appIconText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 32,
+    letterSpacing: 2,
+  },
+  appIconCircleShadow: {
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 8,
+    alignSelf: 'center',
+    borderRadius: 40,
+    marginBottom: 18,
+  },
+  appIconCircleBorder: {
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderRadius: 40,
+    padding: 2,
+    backgroundColor: '#2563eb',
+  },
+  appIconCircleGradient: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'linear-gradient(135deg, #2563eb 60%, #4f8cff 100%)', // fallback for gradient
   },
 });
 

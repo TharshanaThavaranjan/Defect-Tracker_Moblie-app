@@ -1,21 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import Svg, { Path, Line, G, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, Line, G, Circle, Text as SvgText, Polyline } from 'react-native-svg';
 
 // Project list (should match DashboardScreen)
 const PROJECTS = [
   { name: 'Defect Tracker', risk: 'High Risk' },
   { name: 'QA testing', risk: 'High Risk' },
-  { name: 'project 1', risk: 'Low Risk' },
+  { name: 'proko', risk: 'Low Risk' },
   { name: 'Heart', risk: 'Low Risk' },
-  { name: 'Dashbord testing', risk: 'High Risk' },
+  { name: 'Dashbord ', risk: 'High Risk' },
   { name: 'JALI', risk: 'Low Risk' },
-  { name: 'Hello world', risk: 'Low Risk' },
-  { name: 'dashboard test', risk: 'High Risk' },
+  { name: 'Hell', risk: 'Low Risk' },
+  { name: 'Test', risk: 'High Risk' },
+  { name: 'Joko', risk: 'Medium Risk' },
+  { name: 'Tika', risk: 'Medium Risk' },
 ];
 
+// Project metrics for each project
+const PROJECT_DENSITY: Record<string, number> = {
+  'Defect Tracker': 82.77,
+  'QA testing': 70.12,
+  'project 1': 60.5,
+  'Heart': 90.0,
+  'Dashbord testing': 50.0,
+  'JALI': 75.0,
+  'Hello world': 40.0,
+  'dashboard test': 65.0,
+};
+
+const STATIC_SEVERITY_INDEX = 67.6;
+const STATIC_DEFECT_TO_REMARK_RATIO = '2:1';
 // Accepts a project object via navigation params
  type Props = NativeStackScreenProps<RootStackParamList, 'ProjectDetail'>;
 
@@ -102,21 +118,210 @@ const MOCK_DATA = {
   ],
 };
 
+// Pie chart component for defects reopened multiple times
+interface PieChartData {
+  label: string;
+  value: number;
+  color: string;
+}
+
+interface PieChartProps {
+  data: PieChartData[];
+  radius?: number;
+  cx?: number;
+  cy?: number;
+}
+
+const PieChart: React.FC<PieChartProps> = ({ data, radius = 35, cx = 40, cy = 40 }) => {
+  const total = data.reduce((sum: number, d: PieChartData) => sum + d.value, 0);
+  let startAngle = 0;
+  const paths = data.map((slice: PieChartData, idx: number) => {
+    const angle = (slice.value / total) * 2 * Math.PI;
+    const x1 = cx + radius * Math.cos(startAngle);
+    const y1 = cy + radius * Math.sin(startAngle);
+    const x2 = cx + radius * Math.cos(startAngle + angle);
+    const y2 = cy + radius * Math.sin(startAngle + angle);
+    const largeArc = angle > Math.PI ? 1 : 0;
+    const pathData = [
+      `M ${cx} ${cy}`,
+      `L ${x1} ${y1}`,
+      `A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`,
+      'Z',
+    ].join(' ');
+    startAngle += angle;
+    return (
+      <Path
+        key={idx}
+        d={pathData}
+        fill={slice.color}
+      />
+    );
+  });
+  return (
+    <Svg width={cx * 2} height={cy * 2}>
+      {paths}
+    </Svg>
+  );
+};
+
+// Line chart component for time to find defects
+type LineChartProps = {
+  data: number[];
+  labels: string[];
+  width?: number;
+  height?: number;
+  color?: string;
+};
+
+const LineChart: React.FC<LineChartProps> = ({
+  data,
+  labels,
+  width = 300,
+  height = 120,
+  color = '#2563eb',
+}) => {
+  const maxY = Math.max(...data, 5);
+  const minY = 0;
+  const padding = 30;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const points: [number, number][] = data.map((y: number, i: number) => {
+    const x = padding + (i * chartWidth) / (data.length - 1);
+    const yPos = padding + chartHeight - ((y - minY) / (maxY - minY)) * chartHeight;
+    return [x, yPos];
+  });
+  const polylinePoints = points.map(([x, y]) => `${x},${y}`).join(' ');
+  return (
+    <Svg width={width} height={height}>
+      {/* Grid lines and labels */}
+      {[...Array(6)].map((_, i) => {
+        const y = padding + (chartHeight * i) / 5;
+        return (
+          <G key={i}>
+            <Line
+              x1={padding}
+              y1={y}
+              x2={width - padding}
+              y2={y}
+              stroke="#e0e0e0"
+              strokeWidth={1}
+            />
+            <SvgText
+              x={padding - 8}
+              y={y + 4}
+              fontSize="10"
+              fill="#888"
+              textAnchor="end"
+            >
+              {Math.round(maxY - ((maxY - minY) * i) / 5)}
+            </SvgText>
+          </G>
+        );
+      })}
+      {/* X axis labels */}
+      {labels.map((label: string, i: number) => {
+        const x = padding + (i * chartWidth) / (labels.length - 1);
+        return (
+          <SvgText
+            key={i}
+            x={x}
+            y={height - 8}
+            fontSize="10"
+            fill="#888"
+            textAnchor="middle"
+          >
+            {label}
+          </SvgText>
+        );
+      })}
+      {/* Polyline for data */}
+      <Polyline
+        points={polylinePoints}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+      />
+      {/* Dots */}
+      {points.map(([x, y], i) => (
+        <Circle key={i} cx={x} cy={y} r={4} fill="#fff" stroke={color} strokeWidth={2} />
+      ))}
+    </Svg>
+  );
+};
+
 const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { project } = route.params;
+
+  // State for selected project and its defect density
+  const [selectedProject, setSelectedProject] = useState(project);
+  const [defectDensity, setDefectDensity] = useState(() => PROJECT_DENSITY[project.name] || 0);
+
+  useEffect(() => {
+    setDefectDensity(PROJECT_DENSITY[selectedProject.name] || 0);
+  }, [selectedProject]);
 
   const handleLogout = () => {
     navigation.replace('Login');
   };
 
   const handleSelectProject = (proj: { name: string; risk: string }) => {
-    if (proj.name !== project.name) {
+    if (proj.name !== selectedProject.name) {
+      setSelectedProject(proj);
       navigation.replace('ProjectDetail', { project: proj });
     }
   };
 
   const handleBack = () => {
     navigation.goBack();
+  };
+
+  const reopenedData = [
+    { label: '2 times', value: 3, color: '#4285F4' },
+    { label: '3 times', value: 1, color: '#FFB300' },
+  ];
+
+  const defectTypeData = [
+    { label: 'Functionality', value: 236, color: '#4285F4' },
+    { label: 'UI', value: 81, color: '#00b894' },
+    { label: 'Usability', value: 31, color: '#fdcb6e' },
+    { label: 'Validation', value: 99, color: '#d63031' },
+  ];
+
+  const timeToFindData = [5, 6, 8, 7, 6, 5, 4, 5];
+  const timeToFindLabels = [
+    'Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5',
+    'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10'
+  ];
+
+  const timeToFixData = [3, 2, 5, 4, 2, 3, 2, 2, 1, 2];
+  const timeToFixLabels = [
+    'Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5',
+    'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10'
+  ];
+
+  const defectsByModuleData = [
+    { label: 'Configurations', value: 78, color: '#4285F4' },
+    { label: 'Project Management', value: 50, color: '#00b894' },
+    { label: 'Bench', value: 57, color: '#fdcb6e' },
+    { label: 'Defects', value: 63, color: '#d63031' },
+    { label: 'Test Cases', value: 54, color: '#a29bfe' },
+    { label: 'Employee', value: 67, color: '#e17055' },
+    { label: 'Releases', value: 35, color: '#00bcd4' },
+    { label: 'Project', value: 22, color: '#6c5ce7' },
+    { label: 'Main Template', value: 4, color: '#00b894' },
+    { label: 'Dashboard', value: 17, color: '#e17055' },
+  ];
+
+  const sectionContainer = {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   };
 
   return (
@@ -134,7 +339,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           </View>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutIcon}>⇦</Text>
+         { /*<Text style={styles.logoutIcon}>⇦</Text>*/}
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -145,10 +350,10 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           {PROJECTS.map((proj, idx) => (
             <TouchableOpacity
               key={proj.name + idx}
-              style={[styles.selectorPill, proj.name === project.name && styles.selectorPillActive]}
+              style={[styles.selectorPill, proj.name === selectedProject.name && styles.selectorPillActive]}
               onPress={() => handleSelectProject(proj)}
             >
-              <Text style={[styles.selectorPillText, proj.name === project.name && styles.selectorPillTextActive]}>
+              <Text style={[styles.selectorPillText, proj.name === selectedProject.name && styles.selectorPillTextActive]}>
                 {proj.name}
               </Text>
             </TouchableOpacity>
@@ -159,15 +364,13 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       <ScrollView contentContainerStyle={{ padding: 12 }}>
         {/* Project Title and Risk */}
         <View style={styles.headerCard}>
-          <Text style={styles.projectTitle}>{project.name}</Text>
+          <Text style={styles.projectTitle}>{selectedProject.name}</Text>
           <Text style={[styles.risk, 
-            project.risk === 'High Risk' ? styles.high : project.risk === 'Medium Risk' ? styles.medium : styles.low
-          ]}>{project.risk}</Text>
+            selectedProject.risk === 'High Risk' ? styles.high : selectedProject.risk === 'Medium Risk' ? styles.medium : styles.low
+          ]}>{selectedProject.risk}</Text>
         </View>
-
         {/* Defect Severity Breakdown Heading */}
         <Text style={styles.sectionHeading}>Defect Severity Breakdown</Text>
-
         {/* Defect Severity Breakdown */}
         <View style={{ marginBottom: 16 }}>
           {MOCK_DATA.defectSeverityBreakdown.map((sev, idx) => {
@@ -194,60 +397,41 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             );
           })}
         </View>
-
-        {/* Defect Density, Severity Index, Remark Ratio - vertical cards */}
+        {/* Metrics Section (Density, Severity Index, Ratio) */}
         <View style={styles.metricColumnFull}>
-          {/* Defect Density Gauge */}
+          {/* Defect Density Meter Section */}
           <View style={styles.metricCardFull}>
-            <Text style={styles.metricTitleLeft}>Defect Density</Text>
+            <Text style={{ fontSize: 17, color: '#222', fontWeight: '500', marginBottom: 8, textAlign: 'left' }}>Defect Density</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center', marginBottom: 8 }}>
+              Defect Density: <Text style={{ color: '#FFC107' }}>{defectDensity.toFixed(2)}</Text>
+            </Text>
             <View style={{ alignItems: 'center', marginTop: 8 }}>
-              <Text style={styles.metricLabelCenter}>
-                Defect Density: <Text style={styles.metricValue}>{MOCK_DATA.defectDensity}</Text>
-              </Text>
-              <Svg width={160} height={90}>
-                {/* Arc: 180-degree semi-circle */}
-                <Path
-                  d="M 10 80 A 70 70 0 0 1 150 80"
-                  stroke="#2563eb"
-                  strokeWidth={6}
-                  fill="none"
-                />
-                {/* Pointer/Needle */}
-                <G origin="80,80" rotation={(MOCK_DATA.defectDensity / 10) * 180 - 90}>
-                  <Line
-                    x1="80"
-                    y1="80"
-                    x2="80"
-                    y2="20"
-                    stroke="#F44336"
-                    strokeWidth={4}
-                    strokeLinecap="round"
-                  />
-                </G>
-                {/* Center dot */}
-                <Circle cx="80" cy="80" r="6" fill="#222" />
+              <Svg width={180} height={100}>
+                {/* Green arc */}
+                <Path d="M 20 90 A 70 70 0 0 1 90 20" stroke="#43A047" strokeWidth={8} fill="none" />
+                {/* Yellow arc */}
+                <Path d="M 90 20 A 70 70 0 0 1 140 45" stroke="#FFB300" strokeWidth={8} fill="none" />
+                {/* Red arc */}
+                <Path d="M 140 45 A 70 70 0 0 1 160 90" stroke="#F44336" strokeWidth={8} fill="none" />
+                {/* Pointer/Needle with base circle */}
+                {(() => {
+                  const value = Math.max(0, Math.min(defectDensity, 15));
+                  const angle = 180 - (value / 15) * 180;
+                  const rad = (angle * Math.PI) / 180;
+                  const cx = 90, cy = 90, r = 60;
+                  const x2 = cx + r * Math.cos(rad);
+                  const y2 = cy + r * Math.sin(rad);
+                  return (
+                    <>
+                      <Line x1={cx} y1={cy} x2={x2} y2={y2} stroke="#222" strokeWidth={4} strokeLinecap="round" />
+                      <Circle cx={cx} cy={cy} r={8} fill="#222" />
+                    </>
+                  );
+                })()}
                 {/* Tick labels */}
-                <SvgText
-                  x="10"
-                  y="90"
-                  fontSize="12"
-                  fill="#222"
-                  textAnchor="middle"
-                >0</SvgText>
-                <SvgText
-                  x="80"
-                  y="18"
-                  fontSize="12"
-                  fill="#222"
-                  textAnchor="middle"
-                >7</SvgText>
-                <SvgText
-                  x="150"
-                  y="90"
-                  fontSize="12"
-                  fill="#222"
-                  textAnchor="middle"
-                >10</SvgText>
+                <SvgText x={20} y={105} fontSize="13" fill="#222" textAnchor="middle">0</SvgText>
+                <SvgText x={60} y={35} fontSize="13" fill="#222" textAnchor="middle" rotation="-20" origin="60,35">7</SvgText>
+                <SvgText x={120} y={35} fontSize="13" fill="#222" textAnchor="middle" rotation="20" origin="120,35">10</SvgText>
               </Svg>
             </View>
           </View>
@@ -257,9 +441,9 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             <View style={styles.severityIndexContent}>
               <View style={styles.barContainerWeb}>
                 <View style={styles.barTrackWeb}>
-                  <View style={[styles.barFillWeb, { height: `${MOCK_DATA.defectSeverityIndex}%` }]} />
+                  <View style={[styles.barFillWeb, { height: `${STATIC_SEVERITY_INDEX}%` }]} />
                 </View>
-                <Text style={styles.barValueWeb}>{MOCK_DATA.defectSeverityIndex}</Text>
+                <Text style={styles.barValueWeb}>{STATIC_SEVERITY_INDEX}</Text>
               </View>
               <Text style={styles.barLabelWeb}>Weighted severity score (higher = more severe defects)</Text>
             </View>
@@ -268,7 +452,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={styles.metricCardFull}>
             <Text style={styles.metricTitle}>Defect to Remark Ratio</Text>
             <View style={styles.ratioCard}>
-              <Text style={styles.ratioValue}>{MOCK_DATA.defectToRemarkRatio}</Text>
+              <Text style={styles.ratioValue}>{STATIC_DEFECT_TO_REMARK_RATIO}</Text>
               <Text style={styles.ratioLabel}>Critical</Text>
               <View style={styles.ratioBar}>
                 <View style={styles.ratioBarFill} />
@@ -281,44 +465,95 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             </View>
           </View>
         </View>
-
-        {/* Pie Charts Row */}
-        <View style={styles.sectionRow}>
-          <View style={styles.chartCard}>
-            <Text style={styles.metricTitle}>Defects Reopened Multiple Times</Text>
-            <View style={styles.piePlaceholder}>
-              <Text style={styles.pieLabel}>Pie</Text>
+        {/* --- VERTICAL CHART SECTIONS --- */}
+        <View style={{ marginTop: 10 }}>
+          {/* Defects Reopened Multiple Times */}
+          <View style={sectionContainer}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects Reopened Multiple Times</Text>
+            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+              <PieChart data={reopenedData} radius={35} cx={40} cy={40} />
+            </View>
+            <View style={{ marginTop: 10 }}>
+              {reopenedData.map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
+                  <Text style={{ fontSize: 13 }}>{item.label}: {item.value} ({((item.value / reopenedData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1)}%)</Text>
+                </View>
+              ))}
             </View>
           </View>
-          <View style={styles.chartCard}>
-            <Text style={styles.metricTitle}>Defect Distribution by Type</Text>
-            <View style={styles.piePlaceholder}>
-              <Text style={styles.pieLabel}>Pie</Text>
+          {/* Defect Distribution by Type */}
+          <View style={sectionContainer}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defect Distribution by Type</Text>
+            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+              <PieChart data={defectTypeData} radius={40} cx={50} cy={50} />
+            </View>
+            <View style={{ marginTop: 10 }}>
+              {defectTypeData.map((item, idx) => {
+                const total = defectTypeData.reduce((sum, d) => sum + d.value, 0);
+                return (
+                  <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                    <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
+                    <Text style={{ fontSize: 13 }}>
+                      {item.label}: {item.value} ({((item.value / total) * 100).toFixed(1)}%)
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, borderTopWidth: 1, borderColor: '#eee', paddingTop: 12 }}>
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 20 }}>{defectTypeData.reduce((sum, d) => sum + d.value, 0)}</Text>
+                <Text style={{ fontSize: 13, color: '#444' }}>Total Defects</Text>
+              </View>
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 20, color: '#4285F4' }}>
+                  {Math.max(...defectTypeData.map(d => d.value))}
+                </Text>
+                <Text style={{ fontSize: 13, color: '#444' }}>
+                  Most Common{' '}
+                  <Text style={{ fontWeight: 'bold' }}>
+                    {defectTypeData.reduce((a, b) => (a.value > b.value ? a : b)).label}
+                  </Text>
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-
-        {/* Line Charts Row */}
-        <View style={styles.sectionRow}>
-          <View style={styles.lineCard}>
-            <Text style={styles.metricTitle}>Time to Find Defects</Text>
-            <View style={styles.linePlaceholder}>
-              <Text style={styles.lineLabel}>Line</Text>
+          {/* Time to Find Defects */}
+          <View style={sectionContainer}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Time to Find Defects</Text>
+            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+              <LineChart data={timeToFindData} labels={timeToFindLabels} width={320} height={140} />
             </View>
           </View>
-          <View style={styles.lineCard}>
-            <Text style={styles.metricTitle}>Time to Fix Defects</Text>
-            <View style={styles.linePlaceholder}>
-              <Text style={styles.lineLabel}>Line</Text>
+          {/* Time to Fix Defects */}
+          <View style={sectionContainer}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Time to Fix Defects</Text>
+            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+              <LineChart data={timeToFixData} labels={timeToFixLabels} width={320} height={140} color={'#00b894'} />
             </View>
           </View>
-        </View>
-
-        {/* Defects by Module Pie */}
-        <View style={styles.chartCard}>
-          <Text style={styles.metricTitle}>Defects by Module</Text>
-          <View style={styles.piePlaceholder}>
-            <Text style={styles.pieLabel}>Pie</Text>
+          {/* Defects by Module */}
+          <View style={sectionContainer}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects by Module</Text>
+            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+              <PieChart data={defectsByModuleData} radius={50} cx={60} cy={60} />
+            </View>
+            <View style={{ marginTop: 10 }}>
+              {defectsByModuleData.map((item, idx) => {
+                const total = defectsByModuleData.reduce((sum, d) => sum + d.value, 0);
+                return (
+                  <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                    <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
+                    <Text style={{ fontSize: 13 }}>
+                      {item.label}{' '}
+                      <Text style={{ fontWeight: 'bold' }}>{item.value}</Text>
+                      {' '}({((item.value / total) * 100).toFixed(2)}%)
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -330,8 +565,8 @@ const styles = StyleSheet.create({
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 8,
     paddingTop: 18,
     paddingBottom: 10,
     backgroundColor: '#fff',
@@ -339,9 +574,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f1f6',
     elevation: 2,
     zIndex: 10,
+    position: 'relative', // allow absolute positioning of logout
   },
   backBtn: {
-    marginRight: 8,
+    marginRight: 4, // reduce margin
     padding: 6,
     borderRadius: 8,
     backgroundColor: '#f3f6fd',
@@ -354,6 +590,7 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 0, // remove any extra margin
   },
   appIcon: {
     width: 40,
@@ -388,6 +625,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    position: 'absolute',
+    right: 8,
+    top: 18,
   },
   logoutIcon: {
     fontSize: 18,

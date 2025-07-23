@@ -6,12 +6,14 @@ import { RootStackParamList } from '../types';
 const PROJECTS = [
   { name: 'Defect Tracker', risk: 'High Risk' },
   { name: 'QA testing', risk: 'High Risk' },
-  { name: 'project 1', risk: 'Low Risk' },
+  { name: 'proko', risk: 'Low Risk' },
   { name: 'Heart', risk: 'Low Risk' },
-  { name: 'Dashbord testing', risk: 'High Risk' },
+  { name: 'Dashbord ', risk: 'High Risk' },
   { name: 'JALI', risk: 'Low Risk' },
-  { name: 'Hello world', risk: 'Low Risk' },
-  { name: 'dashboard test', risk: 'High Risk' },
+  { name: 'Hell', risk: 'Low Risk' },
+  { name: 'Test', risk: 'High Risk' },
+  { name: 'Joko', risk: 'Medium Risk' },
+  { name: 'Tika', risk: 'Medium Risk' },
 ];
 
 const FILTERS = ['All Projects', 'High Risk', 'Medium Risk', 'Low Risk'];
@@ -57,6 +59,10 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
       ? PROJECTS
       : PROJECTS.filter((p) => p.risk === selectedFilter);
 
+  // Sort projects by risk: High Risk (red) → Medium Risk (yellow) → Low Risk (green)
+  const riskOrder = { 'High Risk': 0, 'Medium Risk': 1, 'Low Risk': 2 };
+  const sortedProjects = [...filteredProjects].sort((a, b) => riskOrder[a.risk as keyof typeof riskOrder] - riskOrder[b.risk as keyof typeof riskOrder]);
+
   // Calculate counts dynamically
   const highRiskCount = PROJECTS.filter(p => p.risk === 'High Risk').length;
   const mediumRiskCount = PROJECTS.filter(p => p.risk === 'Medium Risk').length;
@@ -84,7 +90,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutIcon}>⇦</Text>
+         { /*<Text style={styles.logoutIcon}>⇦</Text>*/}
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -139,7 +145,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             ))}
           </View>
           <View style={styles.projectsGrid}>
-            {filteredProjects.map((project, idx) => {
+            {sortedProjects.map((project, idx) => {
               const cardStyle =
                 project.risk === 'High Risk'
                   ? styles.projectCardHigh
@@ -152,7 +158,6 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                   style={[styles.projectCard, cardStyle]}
                   onPress={() => navigation.navigate('ProjectDetail', { project })}
                 >
-                  <Text style={styles.projectCheck}>✔</Text>
                   <Text style={styles.projectName}>{project.name}</Text>
                   <View style={styles.riskPillWrap}>
                     <Text
@@ -365,11 +370,6 @@ const styles = StyleSheet.create({
     margin: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.09,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
   },
   projectCardHigh: {
     backgroundColor: '#F44336',

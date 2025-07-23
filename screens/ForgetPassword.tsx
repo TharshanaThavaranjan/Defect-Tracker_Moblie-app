@@ -21,8 +21,13 @@ const ForgetPassword: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.background}>
       <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <Icon name="lock-outline" size={44} color="#2563eb" />
+        {/* Attractive App Icon Circle */}
+        <View style={styles.appIconCircleShadow}>
+          <View style={styles.appIconCircleBorder}>
+            <View style={styles.appIconCircleGradient}>
+              <Text style={styles.appIconText}>DT</Text>
+            </View>
+          </View>
         </View>
         <View style={{ height: 12 }} />
         <Text style={styles.title}>Forgot Password?</Text>
@@ -119,6 +124,37 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 0.2,
+  },
+  appIconCircleShadow: {
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 8,
+    alignSelf: 'center',
+    borderRadius: 40,
+    marginBottom: 18,
+  },
+  appIconCircleBorder: {
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderRadius: 40,
+    padding: 2,
+    backgroundColor: '#2563eb',
+  },
+  appIconCircleGradient: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563eb',
+  },
+  appIconText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 32,
+    letterSpacing: 2,
   },
 });
 
