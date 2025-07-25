@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import Svg, { Path, Line, G, Circle, Text as SvgText, Polyline } from 'react-native-svg';
+import Feather from 'react-native-vector-icons/Feather';
 
 // Project list (should match DashboardScreen)
 const PROJECTS = [
@@ -55,9 +56,9 @@ const MOCK_DATA = {
       color: '#F44336',
       border: '#F44336',
       statuses: [
-        { name: 'REOPEN', count: 0 },
-        { name: 'NEW', count: 0 },
-        { name: 'OPEN', count: 0 },
+        { name: 'REOPEN', count: 2 },
+        { name: 'NEW', count: 3 },
+        { name: 'OPEN', count: 1 },
         { name: 'FIXED', count: 0 },
         { name: 'CLOSED', count: 0 },
         { name: 'REJECT', count: 0 },
@@ -70,9 +71,9 @@ const MOCK_DATA = {
       border: '#FFB300',
       statuses: [
         { name: 'REOPEN', count: 0 },
-        { name: 'NEW', count: 0 },
-        { name: 'OPEN', count: 0 },
-        { name: 'FIXED', count: 0 },
+        { name: 'NEW', count: 1 },
+        { name: 'OPEN', count: 2 },
+        { name: 'FIXED', count: 2 },
         { name: 'CLOSED', count: 0 },
         { name: 'REJECT', count: 0 },
         { name: 'DUPLICATE', count: 0 },
@@ -86,9 +87,9 @@ const MOCK_DATA = {
         { name: 'REOPEN', count: 0 },
         { name: 'NEW', count: 0 },
         { name: 'OPEN', count: 0 },
-        { name: 'FIXED', count: 0 },
-        { name: 'CLOSED', count: 0 },
-        { name: 'REJECT', count: 0 },
+        { name: 'FIXED', count: 1 },
+        { name: 'CLOSED', count: 2 },
+        { name: 'REJECT', count: 1 },
         { name: 'DUPLICATE', count: 0 },
       ],
     },
@@ -192,60 +193,85 @@ const LineChart: React.FC<LineChartProps> = ({
   });
   const polylinePoints = points.map(([x, y]) => `${x},${y}`).join(' ');
   return (
-    <Svg width={width} height={height}>
-      {/* Grid lines and labels */}
-      {[...Array(6)].map((_, i) => {
-        const y = padding + (chartHeight * i) / 5;
-        return (
-          <G key={i}>
-            <Line
-              x1={padding}
-              y1={y}
-              x2={width - padding}
-              y2={y}
-              stroke="#e0e0e0"
-              strokeWidth={1}
-            />
+    <View>
+      <Svg width={width} height={height + 40}>
+        {/* Y-axis label */}
+        <SvgText
+          x={10}
+          y={height / 2 + 10}
+          fontSize="14"
+          fill="#222"
+          textAnchor="middle"
+          transform={`rotate(-90, 10, ${height / 2 + 10})`}
+          fontWeight="bold"
+        >
+          Defect counts
+        </SvgText>
+        {/* Grid lines and labels */}
+        {[...Array(6)].map((_, i) => {
+          const y = padding + (chartHeight * i) / 5;
+          return (
+            <G key={i}>
+              <Line
+                x1={padding}
+                y1={y}
+                x2={width - padding}
+                y2={y}
+                stroke="#e0e0e0"
+                strokeWidth={1}
+              />
+              <SvgText
+                x={padding - 8}
+                y={y + 4}
+                fontSize="10"
+                fill="#888"
+                textAnchor="end"
+              >
+                {Math.round(maxY - ((maxY - minY) * i) / 5)}
+              </SvgText>
+            </G>
+          );
+        })}
+        {/* X axis labels */}
+        {labels.map((label: string, i: number) => {
+          const x = padding + (i * chartWidth) / (labels.length - 1);
+          return (
             <SvgText
-              x={padding - 8}
-              y={y + 4}
+              key={i}
+              x={x}
+              y={height - 8}
               fontSize="10"
               fill="#888"
-              textAnchor="end"
+              textAnchor="middle"
             >
-              {Math.round(maxY - ((maxY - minY) * i) / 5)}
+              {label}
             </SvgText>
-          </G>
-        );
-      })}
-      {/* X axis labels */}
-      {labels.map((label: string, i: number) => {
-        const x = padding + (i * chartWidth) / (labels.length - 1);
-        return (
-          <SvgText
-            key={i}
-            x={x}
-            y={height - 8}
-            fontSize="10"
-            fill="#888"
-            textAnchor="middle"
-          >
-            {label}
-          </SvgText>
-        );
-      })}
-      {/* Polyline for data */}
-      <Polyline
-        points={polylinePoints}
-        fill="none"
-        stroke={color}
-        strokeWidth={2}
-      />
-      {/* Dots */}
-      {points.map(([x, y], i) => (
-        <Circle key={i} cx={x} cy={y} r={4} fill="#fff" stroke={color} strokeWidth={2} />
-      ))}
-    </Svg>
+          );
+        })}
+        {/* Polyline for data */}
+        <Polyline
+          points={polylinePoints}
+          fill="none"
+          stroke={color}
+          strokeWidth={2}
+        />
+        {/* Dots */}
+        {points.map(([x, y], i) => (
+          <Circle key={i} cx={x} cy={y} r={4} fill="#fff" stroke={color} strokeWidth={2} />
+        ))}
+        {/* X-axis label */}
+        <SvgText
+          x={width / 2}
+          y={height + 28}
+          fontSize="14"
+          fill="#222"
+          textAnchor="middle"
+          fontWeight="bold"
+        >
+          Days
+        </SvgText>
+      </Svg>
+    </View>
   );
 };
 
@@ -255,6 +281,9 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   // State for selected project and its defect density
   const [selectedProject, setSelectedProject] = useState(project);
   const [defectDensity, setDefectDensity] = useState(() => PROJECT_DENSITY[project.name] || 0);
+  // State for modal visibility and selected severity index
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalSeverityIndex, setModalSeverityIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setDefectDensity(PROJECT_DENSITY[selectedProject.name] || 0);
@@ -287,7 +316,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     { label: 'Validation', value: 99, color: '#d63031' },
   ];
 
-  const timeToFindData = [5, 6, 8, 7, 6, 5, 4, 5];
+  const timeToFindData = [5, 6, 8, 7, 6, 5, 4, 5, 3, 2];
   const timeToFindLabels = [
     'Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5',
     'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10'
@@ -343,8 +372,8 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
-      {/* Project Selector */}
-      <View style={styles.selectorCard}>
+      {/* Project Selector - STICKY */}
+      <View style={[styles.selectorCard, { zIndex: 10, elevation: 3 }]}> 
         <Text style={styles.selectorLabel}>Project Selection</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorScroll}>
           {PROJECTS.map((proj, idx) => (
@@ -360,21 +389,30 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           ))}
         </ScrollView>
       </View>
+      {/* Selected Project Card - STICKY */}
+      <View style={styles.headerCard}>
+        <Text style={styles.projectTitle}>{selectedProject.name}</Text>
+        <Text style={[
+          styles.risk, 
+          selectedProject.risk === 'High Risk' ? styles.high : selectedProject.risk === 'Medium Risk' ? styles.medium : styles.low
+        ]}>
+          {selectedProject.risk}
+        </Text>
+      </View>
       {/* Main Content */}
       <ScrollView contentContainerStyle={{ padding: 12 }}>
-        {/* Project Title and Risk */}
-        <View style={styles.headerCard}>
-          <Text style={styles.projectTitle}>{selectedProject.name}</Text>
-          <Text style={[styles.risk, 
-            selectedProject.risk === 'High Risk' ? styles.high : selectedProject.risk === 'Medium Risk' ? styles.medium : styles.low
-          ]}>{selectedProject.risk}</Text>
-        </View>
         {/* Defect Severity Breakdown Heading */}
         <Text style={styles.sectionHeading}>Defect Severity Breakdown</Text>
         {/* Defect Severity Breakdown */}
         <View style={{ marginBottom: 16 }}>
           {MOCK_DATA.defectSeverityBreakdown.map((sev, idx) => {
             const total = sev.statuses.reduce((sum, s) => sum + s.count, 0);
+            // Prepare pie chart data for this severity
+            const pieData = sev.statuses.map((status) => ({
+              label: status.name,
+              value: status.count,
+              color: STATUS_COLORS[status.name as keyof typeof STATUS_COLORS] || '#888',
+            })).filter(d => d.value > 0); // Only show statuses with count > 0
             return (
               <View key={sev.label} style={[styles.severityBreakdownCard, { borderColor: sev.border }]}> 
                 <View style={styles.severityBreakdownHeader}>
@@ -390,29 +428,68 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     </View>
                   ))}
                 </View>
-                <TouchableOpacity style={styles.viewChartBtn}>
+                <TouchableOpacity style={styles.viewChartBtn} onPress={() => { setModalSeverityIndex(idx); setModalVisible(true); }}>
                   <Text style={styles.viewChartBtnText}>View Chart</Text>
                 </TouchableOpacity>
               </View>
             );
           })}
         </View>
+        {/* Pie Chart Modal */}
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 18, padding: 24, alignItems: 'center', minWidth: 280, maxWidth: '90%' }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 20, marginBottom: 12 }}>Defect Status Breakdown</Text>
+              {modalSeverityIndex !== null && (() => {
+                const sev = MOCK_DATA.defectSeverityBreakdown[modalSeverityIndex];
+                const pieData = sev.statuses.map((status) => ({
+                  label: status.name,
+                  value: status.count,
+                  color: STATUS_COLORS[status.name as keyof typeof STATUS_COLORS] || '#888',
+                })).filter(d => d.value > 0);
+                return (
+                  <>
+                    <PieChart data={pieData.length > 0 ? pieData : [{ label: 'No Data', value: 1, color: '#eee' }]} radius={70} cx={80} cy={80} />
+                    <View style={{ marginTop: 14, marginBottom: 8 }}>
+                      {pieData.length > 0 ? pieData.map((item, i) => (
+                        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                          <View style={{ width: 14, height: 14, backgroundColor: item.color, borderRadius: 7, marginRight: 8 }} />
+                          <Text style={{ fontSize: 16 }}>{item.label}: {item.value}</Text>
+                        </View>
+                      )) : <Text style={{ color: '#888' }}>No defect data</Text>}
+                    </View>
+                  </>
+                );
+              })()}
+              <TouchableOpacity style={[styles.viewChartBtn, { marginTop: 10, minWidth: 100 }]} onPress={() => setModalVisible(false)}>
+                <Text style={styles.viewChartBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
         {/* Metrics Section (Density, Severity Index, Ratio) */}
         <View style={styles.metricColumnFull}>
           {/* Defect Density Meter Section */}
           <View style={styles.metricCardFull}>
             <Text style={{ fontSize: 17, color: '#222', fontWeight: '500', marginBottom: 8, textAlign: 'left' }}>Defect Density</Text>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center', marginBottom: 8 }}>
-              Defect Density: <Text style={{ color: '#FFC107' }}>{defectDensity.toFixed(2)}</Text>
+            <View style={{ alignItems: 'center', marginBottom: 4 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 22, textAlign: 'center', color: '#222' }}>
+                Defect Density: <Text style={{ color: defectDensity === 0 ? '#43A047' : '#FFC107' }}>{defectDensity.toFixed(2)}</Text>
               </Text>
+            </View>
             <View style={{ alignItems: 'center', marginTop: 8 }}>
               <Svg width={180} height={100}>
                 {/* Green arc */}
-                <Path d="M 20 90 A 70 70 0 0 1 90 20" stroke="#43A047" strokeWidth={8} fill="none" />
+                <Path d="M 20 90 A 70 70 0 0 1 90 20" stroke="#43A047" strokeWidth={15} fill="none" />
                 {/* Yellow arc */}
-                <Path d="M 90 20 A 70 70 0 0 1 140 45" stroke="#FFB300" strokeWidth={8} fill="none" />
+                <Path d="M 90 20 A 70 70 0 0 1 140 45" stroke="#FFB300" strokeWidth={15} fill="none" />
                 {/* Red arc */}
-                <Path d="M 140 45 A 70 70 0 0 1 160 90" stroke="#F44336" strokeWidth={8} fill="none" />
+                <Path d="M 140 45 A 70 70 0 0 1 160 90" stroke="#F44336" strokeWidth={15} fill="none" />
                 {/* Pointer/Needle with base circle */}
                 {(() => {
                   const value = Math.max(0, Math.min(defectDensity, 15));
@@ -430,23 +507,36 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 })()}
                 {/* Tick labels */}
                 <SvgText x={20} y={105} fontSize="15" fill="#222" textAnchor="start" rotation="-90" origin="25,90">0</SvgText>
-                <SvgText x={60} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="-30" origin="84,3.5\5">7</SvgText>
+                <SvgText x={60} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="-39" origin="84,3.5\5">7</SvgText>
                 <SvgText x={120} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="50" origin="100,50">10</SvgText>
               </Svg>
             </View>
           </View>
-          {/* Defect Severity Index Vertical Bar */}
+          {/* Defect Severity Index Box (matches image) */}
           <View style={styles.metricCardFull}>
-            <Text style={styles.metricTitleLeft}>Defect Severity Index</Text>
-            <View style={styles.severityIndexContent}>
-              <View style={styles.barContainerWeb}>
-                <View style={styles.barTrackWeb}>
-                  <View style={[styles.barFillWeb, { height: `${STATIC_SEVERITY_INDEX}%` }]} />
+            <Text style={{ fontSize: 17, color: '#222', fontWeight: '500', marginBottom: 8, textAlign: 'left' }}>Defect Severity Index</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+              {/* Meter */}
+              <View style={{ alignItems: 'center', marginRight: 18 }}>
+                <View style={{ width: 32, height: 100, backgroundColor: '#f0f1f6', borderRadius: 16, justifyContent: 'flex-end', overflow: 'hidden' }}>
+                  <View style={{ width: 32, height: `${STATIC_SEVERITY_INDEX}%`, backgroundColor: '#F44336', borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }} />
                 </View>
-                <Text style={styles.barValueWeb}>{STATIC_SEVERITY_INDEX}</Text>
               </View>
-              <Text style={styles.barLabelWeb}>Weighted severity score (higher = more severe defects)</Text>
+              {/* Value and meter labels */}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#F44336', marginRight: 18, minWidth: 80, textAlign: 'right' }}>{STATIC_SEVERITY_INDEX}</Text>
+                <View style={{ height: 100, justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Text style={{ fontSize: 16, color: '#888' }}>100</Text>
+                  <Text style={{ fontSize: 16, color: '#888' }}>75</Text>
+                  <Text style={{ fontSize: 16, color: '#888' }}>50</Text>
+                  <Text style={{ fontSize: 16, color: '#888' }}>25</Text>
+                  <Text style={{ fontSize: 16, color: '#888' }}>0</Text>
+                </View>
+              </View>
             </View>
+            <Text style={{ fontSize: 15, color: '#444', textAlign: 'center', marginTop: 4 }}>
+              Weighted severity score{"\n"}(higher = more severe defects)
+            </Text>
           </View>
           {/* Defect to Remark Ratio (unchanged) */}
           <View style={styles.metricCardFull}>
@@ -471,7 +561,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects Reopened Multiple Times</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <PieChart data={reopenedData} radius={95} cx={95} cy={95} />
+              <PieChart data={reopenedData} radius={88} cx={90} cy={90} />
             </View>
             <View style={{ marginTop: 10 }}>
               {reopenedData.map((item, idx) => (
@@ -486,7 +576,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defect Distribution by Type</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <PieChart data={defectTypeData} radius={95} cx={95} cy={95} />
+              <PieChart data={defectTypeData} radius={90} cx={95} cy={95} />
         </View>
             <View style={{ marginTop: 10 }}>
               {defectTypeData.map((item, idx) => {
@@ -523,21 +613,21 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Time to Find Defects</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <LineChart data={timeToFindData} labels={timeToFindLabels} width={400} height={240} />
+              <LineChart data={timeToFindData} labels={timeToFindLabels} width={350} height={240} />
             </View>
           </View>
           {/* Time to Fix Defects */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Time to Fix Defects</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <LineChart data={timeToFixData} labels={timeToFixLabels} width={400} height={240} color={'#00b894'} />
+              <LineChart data={timeToFixData} labels={timeToFixLabels} width={350} height={240} color={'#00b894'} />
             </View>
           </View>
           {/* Defects by Module */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects by Module</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <PieChart data={defectsByModuleData} radius={95} cx={95} cy={95} />
+              <PieChart data={defectsByModuleData} radius={90} cx={95} cy={95} />
             </View>
             <View style={{ marginTop: 10 }}>
               {defectsByModuleData.map((item, idx) => {
@@ -557,6 +647,35 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           </View>
         </View>
       </ScrollView>
+      {/* Footer with three icons */}
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        paddingVertical: 12,
+        borderTopWidth: 1,
+        borderColor: '#f0f1f6',
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        elevation: 8,
+        zIndex: 100,
+      }}>
+        <TouchableOpacity onPress={() => navigation.replace('Dashboard')} style={{ alignItems: 'center' }}>
+          <Feather name="grid" size={28} color="#2563eb" />
+          <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center' }}>Dashboard</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ alignItems: 'center' }}>
+          <Feather name="user" size={28} color="#2563eb" />
+          <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center' }}>Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={{ alignItems: 'center' }}>
+          <Feather name="settings" size={28} color="#2563eb" />
+          <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center' }}>Settings</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -1325,65 +1444,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
     maxWidth: 160,
-  },
-  ratioCard: {
-    backgroundColor: '#fff4f4',
-    borderRadius: 14,
-    padding: 18,
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 6,
-    marginBottom: 2,
-    borderWidth: 1,
-    borderColor: '#fde0e0',
-  },
-  ratioValue: {
-    fontWeight: 'bold',
-    fontSize: 32,
-    color: '#222',
-    marginBottom: 2,
-  },
-  ratioLabel: {
-    fontSize: 15,
-    color: '#444',
-    marginBottom: 6,
-  },
-  remarkRatioBadge: {
-    backgroundColor: '#fde0e0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 8,
-  },
-  remarkRatioBadgeText: {
-    color: '#F44336',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  remarkRatioBarWrap: {
-    width: '100%',
-    height: 12,
-    backgroundColor: '#fde0e0',
-    borderRadius: 6,
-    marginTop: 4,
-    marginBottom: 2,
-    justifyContent: 'center',
-  },
-  remarkRatioBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: '#F44336',
-    borderRadius: 6,
-  },
-  remarkRatioBarLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 2,
-  },
-  remarkRatioBarLabel: {
-    fontSize: 12,
-    color: '#888',
   },
   ratioBar: {
     width: '100%',

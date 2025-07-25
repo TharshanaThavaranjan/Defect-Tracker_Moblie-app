@@ -6,4 +6,6 @@ export type RootStackParamList = {
   ForgetPassword: undefined;
   NextPage: undefined;
   ProjectDetail: { project: { name: string; risk: string } };
+  Profile: undefined;
+  Settings: undefined;
 }; 
