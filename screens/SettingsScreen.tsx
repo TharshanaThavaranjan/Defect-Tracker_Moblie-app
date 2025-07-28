@@ -114,8 +114,8 @@ const SettingsScreen = () => {
           </View>
         ))}
       </ScrollView>
-    </View>
-  );
+  </View>
+);
 };
 
 const styles = StyleSheet.create({
