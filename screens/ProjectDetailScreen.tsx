@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import Svg, { Path, Line, G, Circle, Text as SvgText, Polyline } from 'react-native-svg';
@@ -40,8 +40,8 @@ const STATUS_COLORS = {
   REOPEN: '#F44336',
   NEW: '#3b82f6',
   OPEN: '#ffeb3b',
-  FIXED: '#43A047',
-  CLOSED: '#388e3c',
+  FIXED: '#43A047', // green
+  CLOSED: '#1976D2', // blue (distinct from green)
   REJECT: '#6d4c41',
   DUPLICATE: '#424242',
 };
@@ -290,7 +290,21 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   }, [selectedProject]);
 
   const handleLogout = () => {
-    navigation.replace('Login');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: () => navigation.replace('Login'),
+        },
+      ]
+    );
   };
 
   const handleSelectProject = (proj: { name: string; risk: string }) => {
@@ -663,7 +677,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         elevation: 8,
         zIndex: 100,
       }}>
-        <TouchableOpacity onPress={() => navigation.replace('Dashboard')} style={{ alignItems: 'center' }}>
+        <TouchableOpacity onPress={() => navigation.replace('Dashboard', { userEmail: 'admin' })} style={{ alignItems: 'center' }}>
           <Feather name="grid" size={28} color="#2563eb" />
           <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center' }}>Dashboard</Text>
         </TouchableOpacity>

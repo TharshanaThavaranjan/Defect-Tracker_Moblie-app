@@ -18,24 +18,32 @@ import WelcomeScreen from './screens/WelcomeScreen';
 import { RootStackParamList } from './types';
 import ProfileScreen from './screens/ProfileScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import EditProfileScreen from './screens/EditProfileScreen';
+import { ThemeProvider } from './ThemeContext';
+import { ProfileProvider } from './ProfileContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function App() {
   return (
-    <NavigationContainer>
-  <Stack.Navigator initialRouteName="Profile" screenOptions={{ headerShown: true }}>
-        <Stack.Screen name="Welcome" component={WelcomeScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Signup" component={SignupScreen} />
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="NextPage" component={NextPage} />
-        <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} />
-        <Stack.Screen name="ForgetPassword" component={ForgetPassword} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ThemeProvider>
+      <ProfileProvider>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: true }}>
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="NextPage" component={NextPage} />
+            <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ForgetPassword" component={ForgetPassword} />
+            <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </ProfileProvider>
+    </ThemeProvider>
   );
 }
 

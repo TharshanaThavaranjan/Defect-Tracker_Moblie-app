@@ -1,66 +1,62 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Platform } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useProfile } from '../ProfileContext';
 
-const user = {
-  name: 'Anna Avetisyan',
-  birthday: 'Birthday',
-  phone: '818 123 4567',
-  instagram: 'Instagram account',
-  email: 'info@aplusdesign.co',
-  password: 'Password',
-};
+const ProfileScreen = ({ navigation }: any) => {
+  const { profileData } = useProfile();
 
-const ProfileScreen = ({ navigation }: any) => (
-  <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-      <LinearGradient colors={["#7F53AC", "#647DEE"]} style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('ProjectDetail', { project: { name: 'Defect Tracker', risk: 'High Risk' } })}>
-          <Icon name="arrow-left" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerText}>{user.name}</Text>
-        <View style={styles.avatarWrapper}>
-          <View style={styles.avatarCircle}>
-            <Icon name="account" size={60} color="#bdbdbd" />
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafd' }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('ProjectDetail', { project: { name: 'Defect Tracker', risk: 'High Risk' } })}>
+            <Icon name="arrow-left" size={26} color="#2563eb" />
+          </TouchableOpacity>
+          <Text style={styles.headerText}>{profileData.name}</Text>
+          <View style={styles.avatarWrapper}>
+            <View style={styles.avatarCircle}>
+              <Icon name="account" size={60} color="#bdbdbd" />
+            </View>
           </View>
         </View>
-      </LinearGradient>
-      <View style={styles.infoContainer}>
-        <View style={styles.infoRow}>
-          <Icon name="account-outline" size={24} color="#7F53AC" style={styles.infoIcon} />
-          <Text style={styles.infoText}>{user.name}</Text>
+        <View style={styles.infoContainer}>
+          <View style={styles.infoRow}>
+            <Icon name="account-outline" size={24} color="#2563eb" style={styles.infoIcon} />
+            <Text style={styles.infoText}>{profileData.name}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Icon name="calendar" size={24} color="#2563eb" style={styles.infoIcon} />
+            <Text style={styles.infoText}>{profileData.birthday}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Icon name="cellphone" size={24} color="#2563eb" style={styles.infoIcon} />
+            <Text style={styles.infoText}>{profileData.phone}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Icon name="instagram" size={24} color="#2563eb" style={styles.infoIcon} />
+            <Text style={styles.infoText}>{profileData.instagram}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Icon name="email-outline" size={24} color="#2563eb" style={styles.infoIcon} />
+            <Text style={styles.infoText}>{profileData.email}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Icon name="eye-outline" size={24} color="#2563eb" style={styles.infoIcon} />
+            <Text style={styles.infoText}>{profileData.password}</Text>
+            <Icon name="sync" size={20} color="#bdbdbd" style={{ marginLeft: 'auto' }} />
+          </View>
+          <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditProfile')}>
+            <View style={styles.editButtonGradient}>
+              <Text style={styles.editButtonText}>Edit profile</Text>
+            </View>
+          </TouchableOpacity>
         </View>
-        <View style={styles.infoRow}>
-          <Icon name="calendar" size={24} color="#7F53AC" style={styles.infoIcon} />
-          <Text style={styles.infoText}>{user.birthday}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Icon name="cellphone" size={24} color="#7F53AC" style={styles.infoIcon} />
-          <Text style={styles.infoText}>{user.phone}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Icon name="instagram" size={24} color="#7F53AC" style={styles.infoIcon} />
-          <Text style={styles.infoText}>{user.instagram}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Icon name="email-outline" size={24} color="#7F53AC" style={styles.infoIcon} />
-          <Text style={styles.infoText}>{user.email}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Icon name="eye-outline" size={24} color="#7F53AC" style={styles.infoIcon} />
-          <Text style={styles.infoText}>{user.password}</Text>
-          <Icon name="sync" size={20} color="#bdbdbd" style={{ marginLeft: 'auto' }} />
-        </View>
-        <TouchableOpacity style={styles.editButton}>
-          <LinearGradient colors={["#7F53AC", "#647DEE"]} style={styles.editButtonGradient}>
-            <Text style={styles.editButtonText}>Edit profile</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  </SafeAreaView>
-);
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
   header: {
@@ -70,18 +66,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    backgroundColor: '#f8fafd',
+    marginBottom: 10,
   },
   backButton: {
     position: 'absolute',
     top: 40,
     left: 20,
     zIndex: 2,
+    backgroundColor: '#e0e7ff',
+    borderRadius: 8,
+    padding: 6,
+    elevation: 2,
   },
   headerText: {
-    color: '#fff',
-    fontSize: 24,
+    color: '#222',
+    fontSize: 26,
     fontWeight: 'bold',
     marginTop: 40,
+    letterSpacing: 0.2,
   },
   avatarWrapper: {
     position: 'absolute',
@@ -96,7 +99,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#f5f5f5',
+    borderColor: '#f8fafd',
     elevation: 4,
   },
   infoContainer: {
@@ -107,7 +110,7 @@ const styles = StyleSheet.create({
     padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -122,16 +125,21 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   infoText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 17,
+    color: '#222',
+    fontWeight: '600',
+    letterSpacing: 0.1,
   },
   editButton: {
     marginTop: 30,
     borderRadius: 24,
     overflow: 'hidden',
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
   },
   editButtonGradient: {
-    paddingVertical: 14,
     alignItems: 'center',
     borderRadius: 24,
   },
@@ -139,6 +147,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    letterSpacing: 0.1,
   },
 });
 
