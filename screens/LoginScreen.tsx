@@ -58,10 +58,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             placeholder="Enter your password"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry={!showPassword}
+            secureTextEntry={!showPassword} // FIX: true means hidden, false means visible
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-            <Feather name={showPassword ? 'eye-off' : 'eye'} size={22} color="#888" />
+            <Feather name={showPassword ? 'eye' : 'eye-off'} size={22} color="#888" />
           </TouchableOpacity>
         </View>
         <View style={styles.rowBetween}>
@@ -93,11 +93,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               Sign Up
             </Text>
           </Text>
-        </View>
-        <View style={styles.demoBox}>
-          <Text style={styles.demoTitle}>Demo Credentials:</Text>
-          <Text style={styles.demoText}>Username: admin</Text>
-          <Text style={styles.demoText}>Password: admin</Text>
         </View>
       </View>
     </View>
@@ -240,26 +235,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
     alignSelf: 'center',
   },
-  demoBox: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    padding: 14,
-    width: '100%',
-    marginTop: 8,
-    alignItems: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  demoTitle: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#222',
-    fontSize: 15,
-  },
-  demoText: {
-    color: '#444',
-    fontSize: 15,
-  },
   backBtn: {
     position: 'absolute',
     top: 10, // Move closer to the top
@@ -318,4 +293,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

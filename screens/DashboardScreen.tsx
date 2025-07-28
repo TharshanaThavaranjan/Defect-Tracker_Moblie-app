@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 
@@ -26,7 +27,7 @@ const STATUS_CARDS = [
     light: '#fff5f5',
     border: '#F44336',
     key: 'High Risk',
-    icon: '❗',
+    icon: <Icon name="alert-circle-outline" size={32} color="#F44336" />,
   },
   {
     label: 'Medium Risk Projects',
@@ -35,7 +36,7 @@ const STATUS_CARDS = [
     light: '#fffbe5',
     border: '#FFB300',
     key: 'Medium Risk',
-    icon: '⚠️',
+    icon: <Icon name="alert-outline" size={32} color="#FFB300" />,
   },
   {
     label: 'Low Risk Projects',
@@ -44,7 +45,7 @@ const STATUS_CARDS = [
     light: '#f5fff7',
     border: '#43A047',
     key: 'Low Risk',
-    icon: '✅',
+    icon: <Icon name="check-circle-outline" size={32} color="#43A047" />,
   },
 ];
 
@@ -52,7 +53,14 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
 const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedFilter, setSelectedFilter] = useState('All Projects');
+  const [showNotifications, setShowNotifications] = useState(false);
   const { userEmail } = route.params || {};
+
+  const notifications = [
+    { id: 1, message: 'Project "Defect Tracker" is at high risk.' },
+    { id: 2, message: 'QA testing deadline approaching.' },
+    { id: 3, message: 'New comment on "Heart" project.' },
+  ];
 
   const filteredProjects =
     selectedFilter === 'All Projects'
@@ -94,6 +102,35 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafd' }}>
+      {/* Notification Center Modal */}
+      <Modal
+        visible={showNotifications}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNotifications(false)}
+      >
+        <View style={styles.centerModalOverlay}>
+          <View style={styles.centerModalContent}>
+            <View style={styles.centerModalHeader}>
+              <Text style={styles.centerModalTitle}>Notifications</Text>
+              <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                <Text style={styles.centerModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.centerModalList}>
+              {notifications.length === 0 ? (
+                <Text style={styles.noNotifications}>No notifications</Text>
+              ) : (
+                notifications.map((notif) => (
+                  <View key={notif.id} style={styles.centerModalItem}>
+                    <Text style={styles.centerModalItemText}>{notif.message}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
       {/* Custom Header */}
       <View style={styles.topHeader}>
         <View style={styles.headerLeft}>
@@ -103,10 +140,14 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text style={styles.appSubtitle}>Project Management Suite</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-         { /*<Text style={styles.logoutIcon}>⇦</Text>*/}
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => setShowNotifications(true)}>
+            <Icon name="bell-outline" size={24} color="#2563eb" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       {/* Main Content */}
       <ScrollView>
@@ -125,7 +166,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
               key={card.label}
               style={[styles.statusCard, { borderColor: card.border, backgroundColor: card.light }]}
             >
-              <Text style={[styles.statusIcon, { color: card.color }]}>{card.icon}</Text>
+              <View style={styles.statusIconWrap}>{card.icon}</View>
               <Text style={styles.statusCardTitle}>{card.label}</Text>
               <Text style={[styles.statusCardCount, { color: card.color }]}> {
                 statusCounts[card.key as 'High Risk' | 'Medium Risk' | 'Low Risk']
@@ -314,9 +355,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
-  statusIcon: {
-    fontSize: 28,
+  statusIconWrap: {
     marginBottom: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 38,
   },
   statusCardTitle: {
     fontWeight: 'bold',
@@ -433,6 +476,80 @@ const styles = StyleSheet.create({
   riskPillLow: {
     backgroundColor: '#2e7d32',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBtn: {
+    marginRight: 10,
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#e0e7ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 22,
+    minWidth: 300,
+    maxWidth: '90%',
+    elevation: 10,
+    alignItems: 'center',
+  },
+  centerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 10,
+  },
+  centerModalTitle: {
+    fontWeight: 'bold',
+    fontSize: 20,
+    color: '#2563eb',
+  },
+  centerModalClose: {
+    fontSize: 22,
+    color: '#888',
+    padding: 4,
+  },
+  centerModalList: {
+    width: '100%',
+    marginTop: 8,
+  },
+  centerModalItem: {
+    backgroundColor: '#f0f4fa',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  centerModalItemText: {
+    color: '#222',
+    fontSize: 15,
+  },
+  sheetItem: {
+    backgroundColor: '#f0f4fa',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  sheetItemText: {
+    color: '#222',
+    fontSize: 15,
+  },
+  noNotifications: {
+    color: '#888',
+    fontSize: 15,
+    marginTop: 10,
+    textAlign: 'center',
+  },
 });
 
-export default DashboardScreen; 
+export default DashboardScreen;

@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import Svg, { Path, Line, G, Circle, Text as SvgText, Polyline } from 'react-native-svg';
 import Feather from 'react-native-vector-icons/Feather';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // Project list (should match DashboardScreen)
 const PROJECTS = [
@@ -284,6 +285,14 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   // State for modal visibility and selected severity index
   const [modalVisible, setModalVisible] = useState(false);
   const [modalSeverityIndex, setModalSeverityIndex] = useState<number | null>(null);
+  const [showReopenedTable, setShowReopenedTable] = useState(false);
+  const [selectedReopenedLabel, setSelectedReopenedLabel] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifications = [
+    { id: 1, message: 'Defect reopened in "Defect Tracker".' },
+    { id: 2, message: 'New defect added to "QA testing".' },
+    { id: 3, message: 'Severity index updated for "Heart".' },
+  ];
 
   useEffect(() => {
     setDefectDensity(PROJECT_DENSITY[selectedProject.name] || 0);
@@ -355,6 +364,41 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     { label: 'Dashboard', value: 17, color: '#e17055' },
   ];
 
+  // Add sample defect data for table display
+  const DEFECTS_REOPENED_DETAILS = {
+    '2 times': [
+      { id: 'DF-101', count: 2, release: 'v1.2', reporter: 'Alice' },
+      { id: 'DF-102', count: 2, release: 'v1.2', reporter: 'Bob' },
+      { id: 'DF-103', count: 2, release: 'v1.3', reporter: 'Charlie' },
+    ],
+    '3 times': [
+      { id: 'DF-104', count: 3, release: 'v1.3', reporter: 'David' },
+    ],
+  };
+
+  // Helper for table rendering
+  const renderReopenedTable = (label: string) => {
+    const rows = DEFECTS_REOPENED_DETAILS[label] || [];
+    return (
+      <View style={styles.tableContainer}>
+        <View style={styles.tableHeader}>
+          <Text style={styles.tableHeaderCell}>Defect ID</Text>
+          <Text style={styles.tableHeaderCell}>Reopened Counts</Text>
+          <Text style={styles.tableHeaderCell}>Reporter</Text>
+          <Text style={styles.tableHeaderCell}>Release</Text>
+        </View>
+        {rows.map((row, idx) => (
+          <View key={row.id + idx} style={styles.tableRow}>
+            <Text style={styles.tableCell}>{row.id}</Text>
+            <Text style={styles.tableCell}>{row.count}</Text>
+            <Text style={styles.tableCell}>{row.reporter}</Text>
+            <Text style={styles.tableCell}>{row.release}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   const sectionContainer = {
     backgroundColor: '#fff',
     borderRadius: 14,
@@ -369,22 +413,55 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafd' }}>
+      {/* Notification Center Modal */}
+      <Modal
+        visible={showNotifications}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNotifications(false)}
+      >
+        <View style={styles.centerModalOverlay}>
+          <View style={styles.centerModalContent}>
+            <View style={styles.centerModalHeader}>
+              <Text style={styles.centerModalTitle}>Notifications</Text>
+              <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                <Text style={styles.centerModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.centerModalList}>
+              {notifications.length === 0 ? (
+                <Text style={styles.noNotifications}>No notifications</Text>
+              ) : (
+                notifications.map((notif) => (
+                  <View key={notif.id} style={styles.centerModalItem}>
+                    <Text style={styles.centerModalItemText}>{notif.message}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
       {/* Custom Header */}
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
         <View style={styles.headerLeft}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
           <View style={styles.appIcon}><Text style={styles.appIconText}>DT</Text></View>
           <View>
             <Text style={styles.appName}>DefectTracker Pro</Text>
             <Text style={styles.appSubtitle}>Project Management Suite</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-         { /*<Text style={styles.logoutIcon}>⇦</Text>*/}
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => setShowNotifications(true)}>
+            <Icon name="bell-outline" size={24} color="#2563eb" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       {/* Project Selector - STICKY */}
       <View style={[styles.selectorCard, { zIndex: 10, elevation: 3 }]}> 
@@ -575,17 +652,80 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects Reopened Multiple Times</Text>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <PieChart data={reopenedData} radius={88} cx={90} cy={90} />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedReopenedLabel('2 times'); // default to first label, or let user pick
+                  setShowReopenedTable(true);
+                }}
+                style={{}}
+              >
+                <PieChart
+                  data={reopenedData}
+                  radius={88}
+                  cx={90}
+                  cy={90}
+                />
+              </TouchableOpacity>
             </View>
             <View style={{ marginTop: 10 }}>
               {reopenedData.map((item, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
                   <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
                   <Text style={{ fontSize: 15 }}>{item.label}: {item.value} ({((item.value / reopenedData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1)}%)</Text>
-          </View>
+                </View>
               ))}
             </View>
           </View>
+          {/* Modal for table */}
+          <Modal
+            visible={showReopenedTable}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowReopenedTable(false)}
+          >
+            <View style={styles.centerModalOverlay}>
+              <View style={styles.reopenedTableModalContent}>
+                <View style={styles.reopenedTableModalHeader}>
+                  <Text style={styles.reopenedTableModalTitle}>Defects Reopened Details</Text>
+                  <TouchableOpacity onPress={() => setShowReopenedTable(false)}>
+                    <Text style={styles.reopenedTableModalClose}>✖</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.reopenedTableModalTable}>
+                  <View style={styles.tableHeader}>
+                    <Text style={styles.tableHeaderCell}>Defect ID</Text>
+                    <Text style={styles.tableHeaderCell}>Reopened Counts</Text>
+                    <Text style={styles.tableHeaderCell}>Reporter</Text>
+                    <Text style={styles.tableHeaderCell}>Release</Text>
+                  </View>
+                  {(DEFECTS_REOPENED_DETAILS[selectedReopenedLabel || '2 times'] || []).map((row, idx) => (
+                    <View key={row.id + idx} style={styles.tableRow}>
+                      <Text style={styles.tableCell}>{row.id}</Text>
+                      <Text style={styles.tableCell}>{row.count}</Text>
+                      <Text style={styles.tableCell}>{row.reporter}</Text>
+                      <Text style={styles.tableCell}>{row.release}</Text>
+                    </View>
+                  ))}
+                  {/* Add Thai details below the table */}
+                  <View style={{ marginTop: 16 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#2563eb', marginBottom: 6 }}>
+                      รายละเอียดข้อบกพร่องที่ถูกเปิดใหม่หลายครั้ง
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#444', marginBottom: 2 }}>
+                      - ข้อมูลนี้แสดงข้อบกพร่องที่ถูกเปิดใหม่มากกว่าหนึ่งครั้งในแต่ละ release
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#444', marginBottom: 2 }}>
+                      - ช่วยให้ทีมงานสามารถติดตามและวิเคราะห์ข้อบกพร่องที่มีแนวโน้มเกิดซ้ำ
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#444', marginBottom: 2 }}>
+                      - ผู้รายงาน (Reporter) คือผู้แจ้งข้อบกพร่องในระบบ
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </Modal>
           {/* Defect Distribution by Type */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defect Distribution by Type</Text>
@@ -698,8 +838,8 @@ const styles = StyleSheet.create({
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 10,
     backgroundColor: '#fff',
@@ -707,7 +847,6 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f1f6',
     elevation: 2,
     zIndex: 10,
-    position: 'relative', // allow absolute positioning of logout
   },
   backBtn: {
     marginRight: 4, // reduce margin
@@ -723,7 +862,18 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 0, // remove any extra margin
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBtn: {
+    marginRight: 10,
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#e0e7ff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   appIcon: {
     width: 40,
@@ -758,14 +908,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    position: 'absolute',
-    right: 8,
-    top: 18,
-  },
-  logoutIcon: {
-    fontSize: 18,
-    color: '#2563eb',
-    marginRight: 4,
   },
   logoutText: {
     color: '#2563eb',
@@ -1273,10 +1415,6 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 2,
   },
-  remarkRatioBarLabel: {
-    fontSize: 12,
-    color: '#888',
-  },
   metricRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1409,11 +1547,6 @@ const styles = StyleSheet.create({
     width: 90,
     marginTop: 2,
   },
-  gaugeLabelNum: {
-    fontSize: 11,
-    color: '#222',
-    fontWeight: 'bold',
-  },
   severityIndexContent: {
     alignItems: 'center',
     width: '100%',
@@ -1479,10 +1612,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginTop: 2,
-  },
-  ratioBarLabelNum: {
-    fontSize: 12,
-    color: '#888',
   },
   metricColumnFull: {
     flex: 1,
@@ -1647,6 +1776,78 @@ const styles = StyleSheet.create({
     width: 160,
     marginTop: 2,
   },
+  tableContainer: {
+    borderWidth: 1,
+    borderColor: '#e0e7ef',
+    borderRadius: 8,
+    marginBottom: 12,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#e0e7ff',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  tableHeaderCell: {
+    flex: 1,
+    fontWeight: 'bold',
+    color: '#2563eb',
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f1f6',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  tableCell: {
+    flex: 1,
+    color: '#222',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  centerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reopenedTableModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 22,
+    minWidth: 320,
+    maxWidth: '90%',
+    elevation: 10,
+    alignItems: 'center',
+  },
+  reopenedTableModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 10,
+  },
+  reopenedTableModalTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    color: '#2563eb',
+  },
+  reopenedTableModalClose: {
+    fontSize: 22,
+    color: '#888',
+    padding: 4,
+  },
+  reopenedTableModalTable: {
+    width: '100%',
+    marginTop: 8,
+  },
 });
 
-export default ProjectDetailScreen; 
+export default ProjectDetailScreen;

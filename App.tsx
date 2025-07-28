@@ -29,7 +29,7 @@ function App() {
     <ThemeProvider>
       <ProfileProvider>
         <NavigationContainer>
-          <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: true }}>
+          <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: true }}>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Signup" component={SignupScreen} />
