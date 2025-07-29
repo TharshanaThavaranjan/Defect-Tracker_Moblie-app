@@ -493,17 +493,17 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.goBack();
   };
 
-  // Get color based on defect density
+  // Get color based on defect density (based on industry standards)
   const getDefectDensityColor = (density: number): string => {
-    if (density <= 7) return '#43A047'; // Green - Good
-    if (density <= 10) return '#FFB300'; // Yellow - Moderate
+    if (density <= 7.0) return '#43A047'; // Green - Good
+    if (density <= 10.0) return '#FFB300'; // Yellow - Moderate
     return '#F44336'; // Red - High Risk
   };
 
-  // Get meaning based on defect density
+  // Get meaning based on defect density (based on industry standards)
   const getDefectDensityMeaning = (density: number): string => {
-    if (density <= 7) return 'Good';
-    if (density <= 10) return 'Moderate Quality';
+    if (density <= 7.0) return 'Good';
+    if (density <= 10.0) return 'Moderate Quality';
     return 'High Risk';
   };
 
@@ -853,32 +853,74 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   </Text>
                 </View>
                 <View style={{ alignItems: 'center', marginTop: 8 }}>
-                  <Svg width={180} height={100}>
-                    {/* Green arc */}
-                    <Path d="M 20 90 A 70 70 0 0 1 90 20" stroke="#43A047" strokeWidth={15} fill="none" />
-                    {/* Yellow arc */}
-                    <Path d="M 90 20 A 70 70 0 0 1 140 45" stroke="#FFB300" strokeWidth={15} fill="none" />
-                    {/* Red arc */}
-                    <Path d="M 140 45 A 70 70 0 0 1 160 90" stroke="#F44336" strokeWidth={15} fill="none" />
-                    {/* Pointer/Needle with base circle */}
+                  <Svg width={280} height={160}>
+                    {/* Semi-circular gauge background */}
+                    <Path
+                      d="M 50 140 A 90 90 0 0 1 230 140"
+                      stroke="#f0f0f0"
+                      strokeWidth={28}
+                      fill="none"
+                    />
+
+                    {/* Green arc (0-7.0) - approximately 47% of the arc */}
+                    <Path
+                      d="M 50 140 A 90 90 0 0 1 165 60"
+                      stroke="#43A047"
+                      strokeWidth={25}
+                      fill="none"
+                    />
+
+                    {/* Yellow arc (7.0-10.0) - approximately 20% of the arc */}
+                    <Path
+                      d="M 165 60 A 90 90 0 0 1 200 75"
+                      stroke="#FFB300"
+                      strokeWidth={25}
+                      fill="none"
+                    />
+
+                    {/* Red arc (10.0-15.0) - remaining 33% of the arc */}
+                    <Path
+                      d="M 200 75 A 90 90 0 0 1 230 140"
+                      stroke="#F44336"
+                      strokeWidth={25}
+                      fill="none"
+                    />
+
+                    {/* Needle/Pointer */}
                     {(() => {
-                      const value = Math.max(0, Math.min(defectDensityData.defectDensity, 15));
-                      const angle = 180 - (value / 15) * 180;
+                      const maxScale = 15;
+                      const value = Math.max(0, Math.min(defectDensityData.defectDensity, maxScale));
+                      // Calculate angle for semi-circle: 180 degrees (left) to 0 degrees (right)
+                      const angle = 180 - (value / maxScale) * 180;
                       const rad = (angle * Math.PI) / 180;
-                      const cx = 90, cy = 90, r = 60;
-                      const x2 = cx + r * Math.cos(rad);
-                      const y2 = cy + r * Math.sin(rad);
+                      const cx = 140, cy = 140; // Center of the semi-circle
+                      const needleLength = 75;
+                      const x2 = cx + needleLength * Math.cos(rad);
+                      const y2 = cy - needleLength * Math.sin(rad);
+
                       return (
                         <>
-                          <Line x1={cx} y1={cy} x2={x2} y2={y2} stroke="#222" strokeWidth={4} strokeLinecap="round" />
-                          <Circle cx={cx} cy={cy} r={8} fill="#222" />
+                          {/* Needle line */}
+                          <Line
+                            x1={cx}
+                            y1={cy}
+                            x2={x2}
+                            y2={y2}
+                            stroke="#333"
+                            strokeWidth={4}
+                            strokeLinecap="round"
+                          />
+                          {/* Center circle */}
+                          <Circle cx={cx} cy={cy} r={8} fill="#333" />
                         </>
                       );
                     })()}
-                    {/* Tick labels */}
-                    <SvgText x={20} y={105} fontSize="15" fill="#222" textAnchor="start" rotation="-90" origin="25,90">0</SvgText>
-                    <SvgText x={60} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="-39" origin="84,35">7</SvgText>
-                    <SvgText x={120} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="50" origin="100,50">10</SvgText>
+
+                    {/* Scale labels */}
+                    <SvgText x={35} y={155} fontSize="16" fill="#666" textAnchor="middle" fontWeight="500">0</SvgText>
+                    <SvgText x={165} y={45} fontSize="16" fill="#666" textAnchor="middle" fontWeight="500">7</SvgText>
+                    <SvgText x={209.5} y={62} fontSize="16" fill="#666" textAnchor="middle" fontWeight="500">10</SvgText>
+                    <SvgText x={245} y={155} fontSize="16" fill="#666" textAnchor="middle" fontWeight="500">15</SvgText>
                   </Svg>
                 </View>
               </>
@@ -1105,19 +1147,19 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                       <Text style={styles.tableCell}>{row.release}</Text>
                     </View>
                   ))}
-                  {/* Add Thai details below the table */}
+                  {/* Add details below the table */}
                   <View style={{ marginTop: 16 }}>
                     <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#2563eb', marginBottom: 6 }}>
-                      รายละเอียดข้อบกพร่องที่ถูกเปิดใหม่หลายครั้ง
+                      Defect Reopening Details
                     </Text>
                     <Text style={{ fontSize: 14, color: '#444', marginBottom: 2 }}>
-                      - ข้อมูลนี้แสดงข้อบกพร่องที่ถูกเปิดใหม่มากกว่าหนึ่งครั้งในแต่ละ release
+                      - This data shows defects that have been reopened more than once in each release
                     </Text>
                     <Text style={{ fontSize: 14, color: '#444', marginBottom: 2 }}>
-                      - ช่วยให้ทีมงานสามารถติดตามและวิเคราะห์ข้อบกพร่องที่มีแนวโน้มเกิดซ้ำ
+                      - Helps teams track and analyze defects with recurring patterns
                     </Text>
                     <Text style={{ fontSize: 14, color: '#444', marginBottom: 2 }}>
-                      - ผู้รายงาน (Reporter) คือผู้แจ้งข้อบกพร่องในระบบ
+                      - Reporter is the person who reported the defect in the system
                     </Text>
                   </View>
                 </View>
