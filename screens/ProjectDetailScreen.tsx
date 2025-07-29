@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Animated, PanResponder } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import Svg, { Path, Line, G, Circle, Text as SvgText, Polyline } from 'react-native-svg';
@@ -38,13 +38,13 @@ const STATIC_DEFECT_TO_REMARK_RATIO = '2:1';
  type Props = NativeStackScreenProps<RootStackParamList, 'ProjectDetail'>;
 
 const STATUS_COLORS = {
-  REOPEN: '#F44336',
+  REOPEN: '#eb1909',
   NEW: '#3b82f6',
   OPEN: '#ffeb3b',
   FIXED: '#43A047', // green
-  CLOSED: '#1976D2', // blue (distinct from green)
-  REJECT: '#6d4c41',
-  DUPLICATE: '#424242',
+  CLOSED: '#19d2bf', // blue (distinct from green)
+  REJECT: '#8909eb',
+  DUPLICATE: '#fc4efa',
 };
 
 const MOCK_DATA = {
@@ -276,8 +276,79 @@ const LineChart: React.FC<LineChartProps> = ({
   );
 };
 
+// Swipeable Notification Component
+const SwipeableNotification: React.FC<{
+  notification: { id: number; message: string };
+  onDismiss: (id: number) => void;
+}> = ({ notification, onDismiss }) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      return Math.abs(gestureState.dx) > 10;
+    },
+    onPanResponderMove: (_, gestureState) => {
+      translateX.setValue(gestureState.dx);
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (Math.abs(gestureState.dx) > 100) {
+        // Swipe threshold met, dismiss notification
+        Animated.parallel([
+          Animated.timing(translateX, {
+            toValue: gestureState.dx > 0 ? 400 : -400,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          onDismiss(notification.id);
+        });
+      } else {
+        // Reset position
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+      }
+    },
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.centerModalItem,
+        {
+          transform: [{ translateX }],
+          opacity,
+        },
+      ]}
+      {...panResponder.panHandlers}
+    >
+      <View style={styles.notificationItemHeader}>
+        <View style={styles.notificationIconContainer}>
+          <Icon name="bell" size={16} color="#2563eb" />
+        </View>
+        <Text style={styles.notificationTime}>Just now</Text>
+      </View>
+      <Text style={styles.centerModalItemText}>{notification.message}</Text>
+    </Animated.View>
+  );
+};
+
 const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { project } = route.params;
+  const [selectedReopenedLabel, setSelectedReopenedLabel] = useState('2 times');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, message: 'Project "Defect Tracker" is at high risk.' },
+    { id: 2, message: 'QA testing deadline approaching.' },
+    { id: 3, message: 'New comment on "Heart" project.' },
+  ]);
+  const { project } = route.params || {};
 
   // State for selected project and its defect density
   const [selectedProject, setSelectedProject] = useState(project);
@@ -286,13 +357,6 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalSeverityIndex, setModalSeverityIndex] = useState<number | null>(null);
   const [showReopenedTable, setShowReopenedTable] = useState(false);
-  const [selectedReopenedLabel, setSelectedReopenedLabel] = useState<string | null>(null);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notifications = [
-    { id: 1, message: 'Defect reopened in "Defect Tracker".' },
-    { id: 2, message: 'New defect added to "QA testing".' },
-    { id: 3, message: 'Severity index updated for "Heart".' },
-  ];
 
   useEffect(() => {
     setDefectDensity(PROJECT_DENSITY[selectedProject.name] || 0);
@@ -411,6 +475,10 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     elevation: 2,
   };
 
+  const handleDismissNotification = (id: number) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafd' }}>
       {/* Notification Center Modal */}
@@ -423,20 +491,28 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         <View style={styles.centerModalOverlay}>
           <View style={styles.centerModalContent}>
             <View style={styles.centerModalHeader}>
-              <Text style={styles.centerModalTitle}>Notifications</Text>
-              <TouchableOpacity onPress={() => setShowNotifications(false)}>
-                <Text style={styles.centerModalClose}>✕</Text>
+              <View style={styles.modalTitleContainer}>
+                <Icon name="bell" size={24} color="#2563eb" style={styles.modalTitleIcon} />
+                <Text style={styles.centerModalTitle}>Notifications</Text>
+              </View>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setShowNotifications(false)}>
+                <Icon name="close" size={20} color="#888" />
               </TouchableOpacity>
             </View>
             <View style={styles.centerModalList}>
               {notifications.length === 0 ? (
-                <Text style={styles.noNotifications}>No notifications</Text>
+                <View style={styles.emptyNotificationContainer}>
+                  <Icon name="bell-off" size={48} color="#cbd5e1" />
+                  <Text style={styles.noNotifications}>No notifications</Text>
+                  <Text style={styles.emptyNotificationSubtitle}>You're all caught up!</Text>
+                </View>
               ) : (
-                notifications.map((notif) => (
-                  <View key={notif.id} style={styles.centerModalItem}>
-                    <Text style={styles.centerModalItemText}>{notif.message}</Text>
-                  </View>
-                ))
+                <>
+                  <Text style={styles.swipeHint}>Swipe left or right to dismiss</Text>
+                  {notifications.map((notif) => (
+                    <SwipeableNotification key={notif.id} notification={notif} onDismiss={() => handleDismissNotification(notif.id)} />
+                  ))}
+                </>
               )}
             </View>
           </View>
@@ -456,10 +532,17 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => setShowNotifications(true)}>
-            <Icon name="bell-outline" size={24} color="#2563eb" />
+            <View style={styles.bellContainer}>
+              <Icon name="bell-outline" size={24} color="#2563eb" />
+              {notifications.length > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{notifications.length}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
+            <Icon name="logout" size={20} color="#2563eb" />
           </TouchableOpacity>
         </View>
       </View>
@@ -511,13 +594,15 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   <Text style={styles.severityBreakdownTotal}>Total: {total}</Text>
                 </View>
                 <View style={styles.severityBreakdownStatusList}>
-                  {sev.statuses.map((status, i) => (
-                    <View key={status.name} style={styles.severityBreakdownStatusRow}>
-                      <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[status.name as keyof typeof STATUS_COLORS] }]} />
-                      <Text style={styles.statusName}>{status.name}</Text>
-                      <Text style={styles.statusCount}>{status.count}</Text>
-                    </View>
-                  ))}
+                  <View style={styles.severityBreakdownStatusGrid}>
+                    {sev.statuses.map((status, i) => (
+                      <View key={status.name} style={styles.severityBreakdownStatusItem}>
+                        <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[status.name as keyof typeof STATUS_COLORS] }]} />
+                        <Text style={styles.statusName}>{status.name}</Text>
+                        <Text style={styles.statusCount}>{status.count}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
                 <TouchableOpacity style={styles.viewChartBtn} onPress={() => { setModalSeverityIndex(idx); setModalVisible(true); }}>
                   <Text style={styles.viewChartBtnText}>View Chart</Text>
@@ -1190,14 +1275,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 4,
   },
-  severityBreakdownStatusRow: {
+  severityBreakdownStatusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    gap: 10, // Add some space between items
+  },
+  severityBreakdownStatusItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
     backgroundColor: '#f8fafd',
     borderRadius: 6,
     paddingVertical: 3,
     paddingHorizontal: 6,
+    width: '45%', // Make items take roughly half the width
+    marginBottom: 6,
   },
   statusDot: {
     width: 12,
@@ -1208,13 +1300,13 @@ const styles = StyleSheet.create({
   statusName: {
     fontSize: 14,
     color: '#222',
-    width: 80,
+    width: 75,
     fontWeight: '500',
   },
   statusCount: {
     fontSize: 14,
     color: '#444',
-    marginLeft: 'auto',
+    marginLeft: 2,
     fontWeight: 'bold',
   },
   viewChartBtn: {
@@ -1613,6 +1705,10 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 2,
   },
+  ratioBarLabelNum: {
+    fontSize: 12,
+    color: '#888',
+  },
   metricColumnFull: {
     flex: 1,
     flexDirection: 'column',
@@ -1814,9 +1910,34 @@ const styles = StyleSheet.create({
   },
   centerModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  centerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  centerModalTitle: {
+    fontWeight: 'bold',
+    fontSize: 20,
+    color: '#2563eb',
+  },
+  centerModalClose: {
+    fontSize: 22,
+    color: '#888',
+    padding: 4,
+  },
+  centerModalItemText: {
+    color: '#222',
+    fontSize: 15,
+    lineHeight: 20,
   },
   reopenedTableModalContent: {
     backgroundColor: '#fff',
@@ -1847,6 +1968,104 @@ const styles = StyleSheet.create({
   reopenedTableModalTable: {
     width: '100%',
     marginTop: 8,
+  },
+  bellContainer: {
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#F44336',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  notificationItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  notificationIcon: {
+    marginRight: 8,
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#888',
+  },
+  noNotifications: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  centerModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    minWidth: 340,
+    maxWidth: '90%',
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e0e7ff',
+  },
+  centerModalList: {
+    width: '100%',
+    marginTop: 8,
+  },
+  centerModalItem: {
+    backgroundColor: '#f8fafd',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  modalTitleIcon: {
+    marginRight: 8,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  emptyNotificationContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  emptyNotificationSubtitle: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 4,
+  },
+  notificationIconContainer: {
+    marginRight: 8,
+  },
+  swipeHint: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 10,
+    textAlign: 'center',
   },
 });
 

@@ -61,7 +61,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             secureTextEntry={!showPassword} // FIX: true means hidden, false means visible
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-            <Feather name={showPassword ? 'eye' : 'eye-off'} size={22} color="#888" />
+            <Feather name={showPassword ? 'eye-off' : 'eye'} size={22} color="#888" />
           </TouchableOpacity>
         </View>
         <View style={styles.rowBetween}>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: '#f9fafb',
     fontSize: 17,
-    height: 48,
+    
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -173,13 +173,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#f9fafb',
     marginBottom: 8,
-    height: 48,
+   
   },
   passwordInput: {
     flex: 1,
     padding: 16,
     fontSize: 17,
-    height: 48,
+    
   },
   eyeIcon: {
     padding: 12,

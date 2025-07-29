@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#f9fafb',
     fontSize: 17,
-    height: 48,
+    
   },
   resetButton: {
     backgroundColor: '#2563eb',

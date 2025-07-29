@@ -30,13 +30,13 @@ function App() {
       <ProfileProvider>
         <NavigationContainer>
           <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: true }}>
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
             <Stack.Screen name="NextPage" component={NextPage} />
             <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="ForgetPassword" component={ForgetPassword} />
+            <Stack.Screen name="ForgetPassword" component={ForgetPassword} options={{ headerShown: false }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Animated, PanResponder } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -51,16 +51,83 @@ const STATUS_CARDS = [
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
+// Swipeable Notification Component
+const SwipeableNotification: React.FC<{
+  notification: { id: number; message: string };
+  onDismiss: (id: number) => void;
+}> = ({ notification, onDismiss }) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      return Math.abs(gestureState.dx) > 10;
+    },
+    onPanResponderMove: (_, gestureState) => {
+      translateX.setValue(gestureState.dx);
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (Math.abs(gestureState.dx) > 100) {
+        // Swipe threshold met, dismiss notification
+        Animated.parallel([
+          Animated.timing(translateX, {
+            toValue: gestureState.dx > 0 ? 400 : -400,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          onDismiss(notification.id);
+        });
+      } else {
+        // Reset position
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+      }
+    },
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.centerModalItem,
+        {
+          transform: [{ translateX }],
+          opacity,
+        },
+      ]}
+      {...panResponder.panHandlers}
+    >
+      <View style={styles.notificationItemHeader}>
+        <View style={styles.notificationIconContainer}>
+          <Icon name="bell" size={16} color="#2563eb" />
+        </View>
+        <Text style={styles.notificationTime}>Just now</Text>
+      </View>
+      <Text style={styles.centerModalItemText}>{notification.message}</Text>
+    </Animated.View>
+  );
+};
+
 const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedFilter, setSelectedFilter] = useState('All Projects');
   const [showNotifications, setShowNotifications] = useState(false);
-  const { userEmail } = route.params || {};
-
-  const notifications = [
+  const [notifications, setNotifications] = useState([
     { id: 1, message: 'Project "Defect Tracker" is at high risk.' },
     { id: 2, message: 'QA testing deadline approaching.' },
     { id: 3, message: 'New comment on "Heart" project.' },
-  ];
+  ]);
+  const { userEmail } = route.params || {};
+
+  const handleDismissNotification = (id: number) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  };
 
   const filteredProjects =
     selectedFilter === 'All Projects'
@@ -112,20 +179,32 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={styles.centerModalOverlay}>
           <View style={styles.centerModalContent}>
             <View style={styles.centerModalHeader}>
-              <Text style={styles.centerModalTitle}>Notifications</Text>
-              <TouchableOpacity onPress={() => setShowNotifications(false)}>
-                <Text style={styles.centerModalClose}>✕</Text>
+              <View style={styles.modalTitleContainer}>
+                <Icon name="bell" size={24} color="#2563eb" style={styles.modalTitleIcon} />
+                <Text style={styles.centerModalTitle}>Notifications</Text>
+              </View>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setShowNotifications(false)}>
+                <Icon name="close" size={20} color="#888" />
               </TouchableOpacity>
             </View>
             <View style={styles.centerModalList}>
               {notifications.length === 0 ? (
-                <Text style={styles.noNotifications}>No notifications</Text>
+                <View style={styles.emptyNotificationContainer}>
+                  <Icon name="bell-off" size={48} color="#cbd5e1" />
+                  <Text style={styles.noNotifications}>No notifications</Text>
+                  <Text style={styles.emptyNotificationSubtitle}>You're all caught up!</Text>
+                </View>
               ) : (
-                notifications.map((notif) => (
-                  <View key={notif.id} style={styles.centerModalItem}>
-                    <Text style={styles.centerModalItemText}>{notif.message}</Text>
-                  </View>
-                ))
+                <>
+                  <Text style={styles.swipeHint}>Swipe left or right to dismiss</Text>
+                  {notifications.map((notif) => (
+                    <SwipeableNotification
+                      key={notif.id}
+                      notification={notif}
+                      onDismiss={handleDismissNotification}
+                    />
+                  ))}
+                </>
               )}
             </View>
           </View>
@@ -142,10 +221,17 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => setShowNotifications(true)}>
-            <Icon name="bell-outline" size={24} color="#2563eb" />
+            <View style={styles.bellContainer}>
+              <Icon name="bell-outline" size={24} color="#2563eb" />
+              {notifications.length > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{notifications.length}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
+            <Icon name="logout" size={20} color="#2563eb" />
           </TouchableOpacity>
         </View>
       </View>
@@ -488,27 +574,66 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  bellContainer: {
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#f44336',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   centerModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   centerModalContent: {
     backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 22,
-    minWidth: 300,
+    borderRadius: 20,
+    padding: 24,
+    minWidth: 340,
     maxWidth: '90%',
-    elevation: 10,
-    alignItems: 'center',
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e0e7ff',
   },
   centerModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  modalTitleIcon: {
+    marginRight: 8,
+  },
+  closeButton: {
+    padding: 4,
   },
   centerModalTitle: {
     fontWeight: 'bold',
@@ -525,10 +650,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   centerModalItem: {
-    backgroundColor: '#f0f4fa',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: '#f8fafd',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   centerModalItemText: {
     color: '#222',
@@ -549,6 +681,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 10,
     textAlign: 'center',
+  },
+  emptyNotificationContainer: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
+  emptyNotificationSubtitle: {
+    fontSize: 13,
+    color: '#6c6c8a',
+    marginTop: 5,
+  },
+  notificationItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  notificationIconContainer: {
+    marginRight: 8,
+  },
+  notificationIcon: {
+    marginRight: 8,
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#6c6c8a',
+  },
+  swipeHint: {
+    fontSize: 14,
+    color: '#6c6c8a',
+    textAlign: 'center',
+    marginBottom: 12,
   },
 });
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -30,33 +30,45 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
         </View>
-      <Text style={styles.title}>Sign Up</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      <View style={styles.passwordContainer}>
+        <View style={{ height: 12 }} />
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.info}>Sign up to start managing your projects.</Text>
+        <Text style={styles.inputLabel}>Email</Text>
         <TextInput
-          style={styles.passwordInput}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
+          style={styles.input}
+          placeholder="Enter your email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
         />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-          <Icon name={showPassword ? 'eye-off' : 'eye'} size={24} color="#888" />
-        </TouchableOpacity>
-      </View>
+        <Text style={styles.inputLabel}>Password</Text>
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Enter your password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+            <Icon name={showPassword ? 'eye-off' : 'eye'} size={24} color="#888" />
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-          <Text style={styles.signupButtonText}>Sign Up</Text>
+          <Text style={styles.signupButtonText}>Create Account</Text>
         </TouchableOpacity>
-      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.link}>Already have an account? Log in</Text>
-      </TouchableOpacity>
+        <View style={{ marginTop: 18, alignItems: 'center' }}>
+          <Text style={{ color: '#444' }}>
+            Already have an account?{' '}
+            <Text
+              style={{ color: '#2563eb', fontWeight: 'bold' }}
+              onPress={() => navigation.navigate('Login')}
+            >
+              Sign In
+            </Text>
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -83,6 +95,82 @@ const styles = StyleSheet.create({
     elevation: 10,
     borderWidth: 1,
     borderColor: '#f0f1f6',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#111827',
+    textAlign: 'center',
+    letterSpacing: 0.2,
+  },
+  info: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginBottom: 24,
+    textAlign: 'center',
+    fontWeight: '400',
+  },
+  inputLabel: {
+    alignSelf: 'flex-start',
+    fontWeight: '600',
+    color: '#222',
+    marginBottom: 4,
+    marginTop: 12,
+    fontSize: 15,
+  },
+  input: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    backgroundColor: '#f9fafb',
+    fontSize: 17,
+    
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    backgroundColor: '#f9fafb',
+    marginBottom: 8,
+    
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 16,
+    fontSize: 17,
+  
+  },
+  eyeIcon: {
+    padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signupButton: {
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingVertical: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 8,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  signupButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    letterSpacing: 0.2,
   },
   appIconCircleShadow: {
     shadowColor: '#2563eb',
@@ -115,32 +203,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     letterSpacing: 2,
   },
-  signupButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 8,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  signupButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 0.2,
-  },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 24 },
-  input: { width: '100%', maxWidth: 320, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 16 },
-  passwordContainer: { flexDirection: 'row', alignItems: 'center', width: '100%', maxWidth: 320, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, marginBottom: 16, backgroundColor: '#fff' },
-  passwordInput: { flex: 1, padding: 12 },
-  eyeIcon: { padding: 8 },
-  link: { color: '#007bff', marginTop: 16 },
 });
 
 export default SignupScreen; 
