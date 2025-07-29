@@ -1,28 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Animated, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, Animated, PanResponder, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, Project, DefectDensity, DefectSeverityIndex, DefectRemarkRatio } from '../types';
 import Svg, { Path, Line, G, Circle, Text as SvgText, Polyline } from 'react-native-svg';
 import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
-// Project list (should match DashboardScreen)
-const PROJECTS = [
-  { name: 'Defect Tracker', risk: 'High Risk' },
-  { name: 'QA testing', risk: 'High Risk' },
-  { name: 'proko', risk: 'Low Risk' },
-  { name: 'Heart', risk: 'Low Risk' },
-  { name: 'Dashbord ', risk: 'High Risk' },
-  { name: 'JALI', risk: 'Low Risk' },
-  { name: 'Hell', risk: 'Low Risk' },
-  { name: 'Test', risk: 'High Risk' },
-  { name: 'Joko', risk: 'Medium Risk' },
-  { name: 'Tika', risk: 'Medium Risk' },
-];
+import { projectsApi } from '../api/projects';
 
 // Project metrics for each project
 const PROJECT_DENSITY: Record<string, number> = {
-  'Defect Tracker': 82.77,
+  'Defect_Tracker': 82.77,
   'QA testing': 70.12,
   'project 1': 60.5,
   'Heart': 90.0,
@@ -34,8 +21,9 @@ const PROJECT_DENSITY: Record<string, number> = {
 
 const STATIC_SEVERITY_INDEX = 67.6;
 const STATIC_DEFECT_TO_REMARK_RATIO = '2:1';
+
 // Accepts a project object via navigation params
- type Props = NativeStackScreenProps<RootStackParamList, 'ProjectDetail'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'ProjectDetail'>;
 
 const STATUS_COLORS = {
   REOPEN: '#eb1909',
@@ -350,16 +338,130 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   ]);
   const { project } = route.params || {};
 
+  // State for projects from API
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // State for defect density
+  const [defectDensityData, setDefectDensityData] = useState<DefectDensity | null>(null);
+  const [defectDensityLoading, setDefectDensityLoading] = useState(false);
+  const [defectDensityError, setDefectDensityError] = useState<string | null>(null);
+
+  // State for defect severity index
+  const [dsiData, setDsiData] = useState<DefectSeverityIndex | null>(null);
+  const [dsiLoading, setDsiLoading] = useState(false);
+  const [dsiError, setDsiError] = useState<string | null>(null);
+
+  // State for defect remark ratio
+  const [remarkRatioData, setRemarkRatioData] = useState<DefectRemarkRatio | null>(null);
+  const [remarkRatioLoading, setRemarkRatioLoading] = useState(false);
+  const [remarkRatioError, setRemarkRatioError] = useState<string | null>(null);
+
   // State for selected project and its defect density
   const [selectedProject, setSelectedProject] = useState(project);
-  const [defectDensity, setDefectDensity] = useState(() => PROJECT_DENSITY[project.name] || 0);
+  const [defectDensity, setDefectDensity] = useState(() => PROJECT_DENSITY[project.projectName] || 0);
   // State for modal visibility and selected severity index
   const [modalVisible, setModalVisible] = useState(false);
   const [modalSeverityIndex, setModalSeverityIndex] = useState<number | null>(null);
   const [showReopenedTable, setShowReopenedTable] = useState(false);
 
+  // Function to determine risk level based on project data
+  const getProjectRisk = (project: Project): string => {
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    const now = new Date();
+    
+    if (now > endDate) {
+      return 'High Risk';
+    }
+    
+    const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntilDeadline <= 7) {
+      return 'Medium Risk';
+    }
+    
+    return 'Low Risk';
+  };
+
+  // Fetch projects from API
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await projectsApi.getProjects();
+      setProjects(response.data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch projects');
+      console.error('Error fetching projects:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch defect density for selected project
+  const fetchDefectDensity = async (projectId: number) => {
+    try {
+      setDefectDensityLoading(true);
+      setDefectDensityError(null);
+      // Using a default KLOC value of 1.0 - in a real app, this would come from project data
+      const response = await projectsApi.getDefectDensity(projectId, 1.0);
+      setDefectDensityData(response.data);
+      setDefectDensity(response.data.defectDensity);
+    } catch (err: any) {
+      setDefectDensityError(err.message || 'Failed to fetch defect density');
+      console.error('Error fetching defect density:', err);
+      // Fallback to static data
+      setDefectDensity(PROJECT_DENSITY[selectedProject.projectName] || 0);
+    } finally {
+      setDefectDensityLoading(false);
+    }
+  };
+
+  // Fetch defect severity index for selected project
+  const fetchDefectSeverityIndex = async (projectId: number) => {
+    try {
+      setDsiLoading(true);
+      setDsiError(null);
+      const response = await projectsApi.getDefectSeverityIndex(projectId);
+      setDsiData(response.data);
+    } catch (err: any) {
+      setDsiError(err.message || 'Failed to fetch defect severity index');
+      console.error('Error fetching defect severity index:', err);
+    } finally {
+      setDsiLoading(false);
+    }
+  };
+
+  // Fetch defect remark ratio for selected project
+  const fetchDefectRemarkRatio = async (projectId: number) => {
+    try {
+      setRemarkRatioLoading(true);
+      setRemarkRatioError(null);
+      const response = await projectsApi.getDefectRemarkRatio(projectId);
+      setRemarkRatioData(response.data);
+    } catch (err: any) {
+      setRemarkRatioError(err.message || 'Failed to fetch defect remark ratio');
+      console.error('Error fetching defect remark ratio:', err);
+    } finally {
+      setRemarkRatioLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setDefectDensity(PROJECT_DENSITY[selectedProject.name] || 0);
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    // Fetch all metrics when project changes
+    if (selectedProject.id) {
+      fetchDefectDensity(selectedProject.id);
+      fetchDefectSeverityIndex(selectedProject.id);
+      fetchDefectRemarkRatio(selectedProject.id);
+    } else {
+      // Fallback to static data
+      setDefectDensity(PROJECT_DENSITY[selectedProject.projectName] || 0);
+    }
   }, [selectedProject]);
 
   const handleLogout = () => {
@@ -380,8 +482,8 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   };
 
-  const handleSelectProject = (proj: { name: string; risk: string }) => {
-    if (proj.name !== selectedProject.name) {
+  const handleSelectProject = (proj: Project) => {
+    if (proj.projectName !== selectedProject.projectName) {
       setSelectedProject(proj);
       navigation.replace('ProjectDetail', { project: proj });
     }
@@ -389,6 +491,50 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const handleBack = () => {
     navigation.goBack();
+  };
+
+  // Get color based on defect density
+  const getDefectDensityColor = (density: number): string => {
+    if (density <= 7) return '#43A047'; // Green - Good
+    if (density <= 10) return '#FFB300'; // Yellow - Moderate
+    return '#F44336'; // Red - High Risk
+  };
+
+  // Get meaning based on defect density
+  const getDefectDensityMeaning = (density: number): string => {
+    if (density <= 7) return 'Good';
+    if (density <= 10) return 'Moderate Quality';
+    return 'High Risk';
+  };
+
+  // Get color based on DSI percentage
+  const getDsiColor = (percentage: number): string => {
+    if (percentage <= 25) return '#43A047'; // Green - Low risk
+    if (percentage <= 50) return '#FFB300'; // Yellow - Moderate risk
+    return '#F44336'; // Red - High risk
+  };
+
+  // Get interpretation based on DSI percentage
+  const getDsiInterpretation = (percentage: number): string => {
+    if (percentage <= 25) return 'Low risk';
+    if (percentage <= 50) return 'Moderate risk';
+    return 'High risk';
+  };
+
+  // Get color based on remark ratio
+  const getRemarkRatioColor = (ratio: string): string => {
+    const numericRatio = parseFloat(ratio.replace('%', ''));
+    if (numericRatio > 98 && numericRatio <= 100) return '#43A047'; // Green - Low
+    if (numericRatio >= 90 && numericRatio <= 98) return '#FFB300'; // Yellow - Medium
+    return '#F44336'; // Red - High
+  };
+
+  // Get category based on remark ratio
+  const getRemarkRatioCategory = (ratio: string): string => {
+    const numericRatio = parseFloat(ratio.replace('%', ''));
+    if (numericRatio > 98 && numericRatio <= 100) return 'Low';
+    if (numericRatio >= 90 && numericRatio <= 98) return 'Medium';
+    return 'High';
   };
 
   const reopenedData = [
@@ -429,7 +575,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   ];
 
   // Add sample defect data for table display
-  const DEFECTS_REOPENED_DETAILS = {
+  const DEFECTS_REOPENED_DETAILS: Record<string, Array<{ id: string; count: number; release: string; reporter: string }>> = {
     '2 times': [
       { id: 'DF-101', count: 2, release: 'v1.2', reporter: 'Alice' },
       { id: 'DF-102', count: 2, release: 'v1.2', reporter: 'Bob' },
@@ -451,7 +597,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <Text style={styles.tableHeaderCell}>Reporter</Text>
           <Text style={styles.tableHeaderCell}>Release</Text>
         </View>
-        {rows.map((row, idx) => (
+        {rows.map((row: { id: string; count: number; release: string; reporter: string }, idx: number) => (
           <View key={row.id + idx} style={styles.tableRow}>
             <Text style={styles.tableCell}>{row.id}</Text>
             <Text style={styles.tableCell}>{row.count}</Text>
@@ -550,27 +696,46 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       <View style={[styles.selectorCard, { zIndex: 10, elevation: 3 }]}> 
         <Text style={styles.selectorLabel}>Project Selection</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorScroll}>
-          {PROJECTS.map((proj, idx) => (
-            <TouchableOpacity
-              key={proj.name + idx}
-              style={[styles.selectorPill, proj.name === selectedProject.name && styles.selectorPillActive]}
-              onPress={() => handleSelectProject(proj)}
-            >
-              <Text style={[styles.selectorPillText, proj.name === selectedProject.name && styles.selectorPillTextActive]}>
-                {proj.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#2563eb" />
+              <Text style={styles.loadingText}>Loading projects...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Icon name="alert-circle" size={16} color="#f44336" />
+              <Text style={styles.errorText}>Failed to load projects</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={fetchProjects}>
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : projects.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No projects available</Text>
+            </View>
+          ) : (
+            projects.map((proj, idx) => (
+              <TouchableOpacity
+                key={proj.projectName + idx}
+                style={[styles.selectorPill, proj.projectName === selectedProject.projectName && styles.selectorPillActive]}
+                onPress={() => handleSelectProject(proj)}
+              >
+                <Text style={[styles.selectorPillText, proj.projectName === selectedProject.projectName && styles.selectorPillTextActive]}>
+                  {proj.projectName}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
       </View>
       {/* Selected Project Card - STICKY */}
       <View style={styles.headerCard}>
-        <Text style={styles.projectTitle}>{selectedProject.name}</Text>
+        <Text style={styles.projectTitle}>{selectedProject.projectName}</Text>
         <Text style={[
           styles.risk, 
-          selectedProject.risk === 'High Risk' ? styles.high : selectedProject.risk === 'Medium Risk' ? styles.medium : styles.low
+          getProjectRisk(selectedProject) === 'High Risk' ? styles.high : getProjectRisk(selectedProject) === 'Medium Risk' ? styles.medium : styles.low
         ]}>
-          {selectedProject.risk}
+          {getProjectRisk(selectedProject)}
         </Text>
       </View>
       {/* Main Content */}
@@ -653,82 +818,230 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           {/* Defect Density Meter Section */}
           <View style={styles.metricCardFull}>
             <Text style={{ fontSize: 17, color: '#222', fontWeight: '500', marginBottom: 8, textAlign: 'left' }}>Defect Density</Text>
-            <View style={{ alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 22, textAlign: 'center', color: '#222' }}>
-                Defect Density: <Text style={{ color: defectDensity === 0 ? '#43A047' : '#FFC107' }}>{defectDensity.toFixed(2)}</Text>
-              </Text>
-            </View>
-            <View style={{ alignItems: 'center', marginTop: 8 }}>
-              <Svg width={180} height={100}>
-                {/* Green arc */}
-                <Path d="M 20 90 A 70 70 0 0 1 90 20" stroke="#43A047" strokeWidth={15} fill="none" />
-                {/* Yellow arc */}
-                <Path d="M 90 20 A 70 70 0 0 1 140 45" stroke="#FFB300" strokeWidth={15} fill="none" />
-                {/* Red arc */}
-                <Path d="M 140 45 A 70 70 0 0 1 160 90" stroke="#F44336" strokeWidth={15} fill="none" />
-                {/* Pointer/Needle with base circle */}
-                {(() => {
-                  const value = Math.max(0, Math.min(defectDensity, 15));
-                  const angle = 180 - (value / 15) * 180;
-                  const rad = (angle * Math.PI) / 180;
-                  const cx = 90, cy = 90, r = 60;
-                  const x2 = cx + r * Math.cos(rad);
-                  const y2 = cy + r * Math.sin(rad);
-                  return (
-                    <>
-                      <Line x1={cx} y1={cy} x2={x2} y2={y2} stroke="#222" strokeWidth={4} strokeLinecap="round" />
-                      <Circle cx={cx} cy={cy} r={8} fill="#222" />
-                    </>
-                  );
-                })()}
-                {/* Tick labels */}
-                <SvgText x={20} y={105} fontSize="15" fill="#222" textAnchor="start" rotation="-90" origin="25,90">0</SvgText>
-                <SvgText x={60} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="-39" origin="84,3.5\5">7</SvgText>
-                <SvgText x={120} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="50" origin="100,50">10</SvgText>
-              </Svg>
-            </View>
+            
+            {defectDensityLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color="#2563eb" />
+                <Text style={{ marginTop: 8, color: '#666', fontSize: 14 }}>Loading defect density...</Text>
+              </View>
+            ) : defectDensityError ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Icon name="alert-circle" size={24} color="#f44336" />
+                <Text style={{ marginTop: 8, color: '#f44336', fontSize: 14, textAlign: 'center' }}>
+                  {defectDensityError}
+                </Text>
+                <TouchableOpacity 
+                  style={{ marginTop: 8, backgroundColor: '#e0e7ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}
+                  onPress={() => selectedProject.id && fetchDefectDensity(selectedProject.id)}
+                >
+                  <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: 'bold' }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : defectDensityData ? (
+              <>
+                <View style={{ alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 22, textAlign: 'center', color: '#222' }}>
+                    Defect Density: <Text style={{ color: getDefectDensityColor(defectDensityData.defectDensity) }}>
+                      {defectDensityData.defectDensity.toFixed(2)}
+                    </Text>
+                  </Text>
+                  <Text style={{ fontSize: 14, color: '#666', marginTop: 4 }}>
+                    {defectDensityData.meaning} • {defectDensityData.range}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                    {defectDensityData.defects} defects • {defectDensityData.kloc} KLOC
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'center', marginTop: 8 }}>
+                  <Svg width={180} height={100}>
+                    {/* Green arc */}
+                    <Path d="M 20 90 A 70 70 0 0 1 90 20" stroke="#43A047" strokeWidth={15} fill="none" />
+                    {/* Yellow arc */}
+                    <Path d="M 90 20 A 70 70 0 0 1 140 45" stroke="#FFB300" strokeWidth={15} fill="none" />
+                    {/* Red arc */}
+                    <Path d="M 140 45 A 70 70 0 0 1 160 90" stroke="#F44336" strokeWidth={15} fill="none" />
+                    {/* Pointer/Needle with base circle */}
+                    {(() => {
+                      const value = Math.max(0, Math.min(defectDensityData.defectDensity, 15));
+                      const angle = 180 - (value / 15) * 180;
+                      const rad = (angle * Math.PI) / 180;
+                      const cx = 90, cy = 90, r = 60;
+                      const x2 = cx + r * Math.cos(rad);
+                      const y2 = cy + r * Math.sin(rad);
+                      return (
+                        <>
+                          <Line x1={cx} y1={cy} x2={x2} y2={y2} stroke="#222" strokeWidth={4} strokeLinecap="round" />
+                          <Circle cx={cx} cy={cy} r={8} fill="#222" />
+                        </>
+                      );
+                    })()}
+                    {/* Tick labels */}
+                    <SvgText x={20} y={105} fontSize="15" fill="#222" textAnchor="start" rotation="-90" origin="25,90">0</SvgText>
+                    <SvgText x={60} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="-39" origin="84,35">7</SvgText>
+                    <SvgText x={120} y={35} fontSize="15" fill="#222" textAnchor="start" rotation="50" origin="100,50">10</SvgText>
+                  </Svg>
+                </View>
+              </>
+            ) : (
+              <View style={{ alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 22, textAlign: 'center', color: '#222' }}>
+                  Defect Density: <Text style={{ color: defectDensity === 0 ? '#43A047' : '#FFC107' }}>{defectDensity.toFixed(2)}</Text>
+                </Text>
+              </View>
+            )}
           </View>
           {/* Defect Severity Index Box (matches image) */}
           <View style={styles.metricCardFull}>
             <Text style={{ fontSize: 17, color: '#222', fontWeight: '500', marginBottom: 8, textAlign: 'left' }}>Defect Severity Index</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-              {/* Meter */}
-              <View style={{ alignItems: 'center', marginRight: 18 }}>
-                <View style={{ width: 32, height: 100, backgroundColor: '#f0f1f6', borderRadius: 16, justifyContent: 'flex-end', overflow: 'hidden' }}>
-                  <View style={{ width: 32, height: `${STATIC_SEVERITY_INDEX}%`, backgroundColor: '#F44336', borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }} />
+            
+            {dsiLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color="#2563eb" />
+                <Text style={{ marginTop: 8, color: '#666', fontSize: 14 }}>Loading severity index...</Text>
+              </View>
+            ) : dsiError ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Icon name="alert-circle" size={24} color="#f44336" />
+                <Text style={{ marginTop: 8, color: '#f44336', fontSize: 14, textAlign: 'center' }}>
+                  {dsiError}
+                </Text>
+                <TouchableOpacity 
+                  style={{ marginTop: 8, backgroundColor: '#e0e7ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}
+                  onPress={() => selectedProject.id && fetchDefectSeverityIndex(selectedProject.id)}
+                >
+                  <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: 'bold' }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : dsiData ? (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                  {/* Meter */}
+                  <View style={{ alignItems: 'center', marginRight: 18 }}>
+                    <View style={{ width: 32, height: 100, backgroundColor: '#f0f1f6', borderRadius: 16, justifyContent: 'flex-end', overflow: 'hidden' }}>
+                      <View style={{ 
+                        width: 32, 
+                        height: `${Math.min(dsiData.dsiPercentage, 100)}%`, 
+                        backgroundColor: getDsiColor(dsiData.dsiPercentage), 
+                        borderBottomLeftRadius: 16, 
+                        borderBottomRightRadius: 16 
+                      }} />
+                    </View>
+                  </View>
+                  {/* Value and meter labels */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ 
+                      fontSize: 48, 
+                      fontWeight: 'bold', 
+                      color: getDsiColor(dsiData.dsiPercentage), 
+                      marginRight: 18, 
+                      minWidth: 80, 
+                      textAlign: 'right' 
+                    }}>
+                      {dsiData.dsiPercentage.toFixed(1)}
+                    </Text>
+                    <View style={{ height: 100, justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Text style={{ fontSize: 16, color: '#888' }}>100</Text>
+                      <Text style={{ fontSize: 16, color: '#888' }}>75</Text>
+                      <Text style={{ fontSize: 16, color: '#888' }}>50</Text>
+                      <Text style={{ fontSize: 16, color: '#888' }}>25</Text>
+                      <Text style={{ fontSize: 16, color: '#888' }}>0</Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={{ fontSize: 15, color: '#444', textAlign: 'center', marginTop: 4 }}>
+                  {dsiData.interpretation} • {dsiData.totalDefects} defects
+                </Text>
+                <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', marginTop: 2 }}>
+                  Score: {dsiData.actualSeverityScore}/{dsiData.maximumSeverityScore}
+                </Text>
+              </>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                {/* Meter */}
+                <View style={{ alignItems: 'center', marginRight: 18 }}>
+                  <View style={{ width: 32, height: 100, backgroundColor: '#f0f1f6', borderRadius: 16, justifyContent: 'flex-end', overflow: 'hidden' }}>
+                    <View style={{ width: 32, height: `${STATIC_SEVERITY_INDEX}%`, backgroundColor: '#F44336', borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }} />
+                  </View>
+                </View>
+                {/* Value and meter labels */}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#F44336', marginRight: 18, minWidth: 80, textAlign: 'right' }}>{STATIC_SEVERITY_INDEX}</Text>
+                  <View style={{ height: 100, justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={{ fontSize: 16, color: '#888' }}>100</Text>
+                    <Text style={{ fontSize: 16, color: '#888' }}>75</Text>
+                    <Text style={{ fontSize: 16, color: '#888' }}>50</Text>
+                    <Text style={{ fontSize: 16, color: '#888' }}>25</Text>
+                    <Text style={{ fontSize: 16, color: '#888' }}>0</Text>
+                  </View>
                 </View>
               </View>
-              {/* Value and meter labels */}
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#F44336', marginRight: 18, minWidth: 80, textAlign: 'right' }}>{STATIC_SEVERITY_INDEX}</Text>
-                <View style={{ height: 100, justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Text style={{ fontSize: 16, color: '#888' }}>100</Text>
-                  <Text style={{ fontSize: 16, color: '#888' }}>75</Text>
-                  <Text style={{ fontSize: 16, color: '#888' }}>50</Text>
-                  <Text style={{ fontSize: 16, color: '#888' }}>25</Text>
-                  <Text style={{ fontSize: 16, color: '#888' }}>0</Text>
-                </View>
-              </View>
-            </View>
+            )}
             <Text style={{ fontSize: 15, color: '#444', textAlign: 'center', marginTop: 4 }}>
               Weighted severity score{"\n"}(higher = more severe defects)
             </Text>
           </View>
-          {/* Defect to Remark Ratio (unchanged) */}
+          {/* Defect to Remark Ratio */}
           <View style={styles.metricCardFull}>
             <Text style={styles.metricTitle}>Defect to Remark Ratio</Text>
-            <View style={styles.ratioCard}>
-              <Text style={styles.ratioValue}>{STATIC_DEFECT_TO_REMARK_RATIO}</Text>
-              <Text style={styles.ratioLabel}>Critical</Text>
-              <View style={styles.ratioBar}>
-                <View style={styles.ratioBarFill} />
+            
+            {remarkRatioLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color="#2563eb" />
+                <Text style={{ marginTop: 8, color: '#666', fontSize: 14 }}>Loading remark ratio...</Text>
               </View>
-              <View style={styles.ratioBarLabels}>
-                <Text style={styles.ratioBarLabelNum}>0.0</Text>
-                <Text style={styles.ratioBarLabelNum}>0.5</Text>
-                <Text style={styles.ratioBarLabelNum}>1.0</Text>
+            ) : remarkRatioError ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Icon name="alert-circle" size={24} color="#f44336" />
+                <Text style={{ marginTop: 8, color: '#f44336', fontSize: 14, textAlign: 'center' }}>
+                  {remarkRatioError}
+                </Text>
+                <TouchableOpacity 
+                  style={{ marginTop: 8, backgroundColor: '#e0e7ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}
+                  onPress={() => selectedProject.id && fetchDefectRemarkRatio(selectedProject.id)}
+                >
+                  <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: 'bold' }}>Retry</Text>
+                </TouchableOpacity>
               </View>
-            </View>
+            ) : remarkRatioData ? (
+              <View style={styles.ratioCard}>
+                <Text style={[styles.ratioValue, { color: getRemarkRatioColor(remarkRatioData.ratio) }]}>
+                  {remarkRatioData.ratio}
+                </Text>
+                <Text style={[styles.ratioLabel, { color: getRemarkRatioColor(remarkRatioData.ratio) }]}>
+                  {remarkRatioData.category}
+                </Text>
+                <View style={styles.ratioBar}>
+                  <View style={[
+                    styles.ratioBarFill, 
+                    { 
+                      backgroundColor: getRemarkRatioColor(remarkRatioData.ratio),
+                      width: `${Math.min(parseFloat(remarkRatioData.ratio.replace('%', '')), 100)}%`
+                    }
+                  ]} />
+                </View>
+                <View style={styles.ratioBarLabels}>
+                  <Text style={styles.ratioBarLabelNum}>0%</Text>
+                  <Text style={styles.ratioBarLabelNum}>50%</Text>
+                  <Text style={styles.ratioBarLabelNum}>100%</Text>
+                </View>
+                <Text style={{ fontSize: 12, color: '#666', textAlign: 'center', marginTop: 8 }}>
+                  {remarkRatioData.defects} defects • {remarkRatioData.remarks} remarks
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.ratioCard}>
+                <Text style={styles.ratioValue}>{STATIC_DEFECT_TO_REMARK_RATIO}</Text>
+                <Text style={styles.ratioLabel}>Critical</Text>
+                <View style={styles.ratioBar}>
+                  <View style={styles.ratioBarFill} />
+                </View>
+                <View style={styles.ratioBarLabels}>
+                  <Text style={styles.ratioBarLabelNum}>0.0</Text>
+                  <Text style={styles.ratioBarLabelNum}>0.5</Text>
+                  <Text style={styles.ratioBarLabelNum}>1.0</Text>
+                </View>
+              </View>
+            )}
           </View>
         </View>
         {/* --- VERTICAL CHART SECTIONS --- */}
@@ -784,7 +1097,7 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     <Text style={styles.tableHeaderCell}>Reporter</Text>
                     <Text style={styles.tableHeaderCell}>Release</Text>
                   </View>
-                  {(DEFECTS_REOPENED_DETAILS[selectedReopenedLabel || '2 times'] || []).map((row, idx) => (
+                  {(DEFECTS_REOPENED_DETAILS[selectedReopenedLabel || '2 times'] || []).map((row: { id: string; count: number; release: string; reporter: string }, idx: number) => (
                     <View key={row.id + idx} style={styles.tableRow}>
                       <Text style={styles.tableCell}>{row.id}</Text>
                       <Text style={styles.tableCell}>{row.count}</Text>
@@ -2066,6 +2379,48 @@ const styles = StyleSheet.create({
     color: '#888',
     marginBottom: 10,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  loadingText: {
+    color: '#2563eb',
+    fontSize: 14,
+    marginLeft: 5,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 14,
+    marginLeft: 5,
+  },
+  retryButton: {
+    backgroundColor: '#e0e7ff',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginLeft: 10,
+  },
+  retryButtonText: {
+    color: '#2563eb',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  emptyText: {
+    color: '#888',
+    fontSize: 14,
   },
 });
 

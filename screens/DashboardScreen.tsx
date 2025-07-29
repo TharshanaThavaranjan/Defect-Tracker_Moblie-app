@@ -1,21 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Animated, PanResponder } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Animated, PanResponder, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
-
-const PROJECTS = [
-  { name: 'Defect Tracker', risk: 'High Risk' },
-  { name: 'QA testing', risk: 'High Risk' },
-  { name: 'proko', risk: 'Low Risk' },
-  { name: 'Heart', risk: 'Low Risk' },
-  { name: 'Dashbord ', risk: 'High Risk' },
-  { name: 'JALI', risk: 'Low Risk' },
-  { name: 'Hell', risk: 'Low Risk' },
-  { name: 'Test', risk: 'High Risk' },
-  { name: 'Joko', risk: 'Medium Risk' },
-  { name: 'Tika', risk: 'Medium Risk' },
-];
+import { RootStackParamList, Project } from '../types';
+import { projectsApi } from '../api/projects';
 
 const FILTERS = ['All Projects', 'High Risk', 'Medium Risk', 'Low Risk'];
 
@@ -123,25 +111,76 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     { id: 2, message: 'QA testing deadline approaching.' },
     { id: 3, message: 'New comment on "Heart" project.' },
   ]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { userEmail } = route.params || {};
+
+  // Function to determine risk level based on project data
+  const getProjectRisk = (project: Project): string => {
+    // Simple risk calculation based on project dates and other factors
+    const startDate = new Date(project.startDate);
+    const endDate = new Date(project.endDate);
+    const now = new Date();
+    
+    // If project is overdue, it's high risk
+    if (now > endDate) {
+      return 'High Risk';
+    }
+    
+    // If project is within 7 days of deadline, it's medium risk
+    const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntilDeadline <= 7) {
+      return 'Medium Risk';
+    }
+    
+    // Otherwise, it's low risk
+    return 'Low Risk';
+  };
+
+  // Fetch projects from API
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await projectsApi.getProjects();
+      setProjects(response.data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch projects');
+      console.error('Error fetching projects:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
 
   const handleDismissNotification = (id: number) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   };
 
+  // Transform API projects to display format
+  const transformedProjects = projects.map(project => ({
+    ...project,
+    name: project.projectName,
+    risk: getProjectRisk(project),
+  }));
+
   const filteredProjects =
     selectedFilter === 'All Projects'
-      ? PROJECTS
-      : PROJECTS.filter((p) => p.risk === selectedFilter);
+      ? transformedProjects
+      : transformedProjects.filter((p) => p.risk === selectedFilter);
 
   // Sort projects by risk: High Risk (red) → Medium Risk (yellow) → Low Risk (green)
   const riskOrder = { 'High Risk': 0, 'Medium Risk': 1, 'Low Risk': 2 };
   const sortedProjects = [...filteredProjects].sort((a, b) => riskOrder[a.risk as keyof typeof riskOrder] - riskOrder[b.risk as keyof typeof riskOrder]);
 
   // Calculate counts dynamically
-  const highRiskCount = PROJECTS.filter(p => p.risk === 'High Risk').length;
-  const mediumRiskCount = PROJECTS.filter(p => p.risk === 'Medium Risk').length;
-  const lowRiskCount = PROJECTS.filter(p => p.risk === 'Low Risk').length;
+  const highRiskCount = transformedProjects.filter(p => p.risk === 'High Risk').length;
+  const mediumRiskCount = transformedProjects.filter(p => p.risk === 'Medium Risk').length;
+  const lowRiskCount = transformedProjects.filter(p => p.risk === 'Low Risk').length;
 
   const statusCounts = {
     'High Risk': highRiskCount,
@@ -166,6 +205,28 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
       ]
     );
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Loading projects...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Icon name="alert-circle" size={48} color="#f44336" />
+        <Text style={styles.errorTitle}>Failed to load projects</Text>
+        <Text style={styles.errorMessage}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchProjects}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafd' }}>
@@ -310,7 +371,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                   : styles.projectCardLow;
               return (
                 <TouchableOpacity
-                  key={project.name + idx}
+                  key={project.id || project.name + idx}
                   style={[styles.projectCard, cardStyle]}
                   onPress={() => navigation.navigate('ProjectDetail', { project })}
                 >
@@ -726,6 +787,48 @@ const styles = StyleSheet.create({
     color: '#6c6c8a',
     textAlign: 'center',
     marginBottom: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafd',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6c6c8a',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafd',
+    paddingHorizontal: 32,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#222',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#6c6c8a',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
