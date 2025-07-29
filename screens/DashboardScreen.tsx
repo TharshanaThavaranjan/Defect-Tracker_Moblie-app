@@ -265,25 +265,40 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={styles.projectsSection}>
           <Text style={styles.projectsTitle}>All Projects</Text>
           <View style={styles.filterRow}>
-            {FILTERS.map((filter) => (
-              <TouchableOpacity
-                key={filter}
-                style={[
-                  styles.filterButton,
-                  selectedFilter === filter && styles.filterButtonActive,
-                ]}
-                onPress={() => setSelectedFilter(filter)}
-              >
-                <Text
-                  style={[
-                    styles.filterButtonText,
-                    selectedFilter === filter && styles.filterButtonTextActive,
-                  ]}
+            {FILTERS.map((filter) => {
+              const isActive = selectedFilter === filter;
+              let filterStyle: any = styles.filterButton;
+              let textStyle: any = styles.filterButtonText;
+              
+              if (isActive) {
+                if (filter === 'High Risk') {
+                  filterStyle = StyleSheet.flatten([styles.filterButton, { backgroundColor: '#F44336' }]);
+                  textStyle = StyleSheet.flatten([styles.filterButtonText, { color: '#fff' }]);
+                } else if (filter === 'Medium Risk') {
+                  filterStyle = StyleSheet.flatten([styles.filterButton, { backgroundColor: '#FFB300' }]);
+                  textStyle = StyleSheet.flatten([styles.filterButtonText, { color: '#fff' }]);
+                } else if (filter === 'Low Risk') {
+                  filterStyle = StyleSheet.flatten([styles.filterButton, { backgroundColor: '#43A047' }]);
+                  textStyle = StyleSheet.flatten([styles.filterButtonText, { color: '#fff' }]);
+                } else {
+                  // All Projects
+                  filterStyle = StyleSheet.flatten([styles.filterButton, styles.filterButtonActive]);
+                  textStyle = StyleSheet.flatten([styles.filterButtonText, styles.filterButtonTextActive]);
+                }
+              }
+              
+              return (
+                <TouchableOpacity
+                  key={filter}
+                  style={filterStyle}
+                  onPress={() => setSelectedFilter(filter)}
                 >
-                  {filter}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={textStyle}>
+                    {filter}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           <View style={styles.projectsGrid}>
             {sortedProjects.map((project, idx) => {

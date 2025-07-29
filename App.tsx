@@ -12,7 +12,6 @@ import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import ForgetPassword from './screens/ForgetPassword';
-import NextPage from './screens/NextPage';
 import ProjectDetailScreen from './screens/ProjectDetailScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
 import { RootStackParamList } from './types';
@@ -34,7 +33,6 @@ function App() {
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="NextPage" component={NextPage} />
             <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ForgetPassword" component={ForgetPassword} options={{ headerShown: false }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
