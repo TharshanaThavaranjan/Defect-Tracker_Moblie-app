@@ -56,6 +56,85 @@ export interface DefectDensityResponse extends ApiResponse<DefectDensity> {}
 export interface DefectSeverityIndexResponse extends ApiResponse<DefectSeverityIndex> {}
 export interface DefectRemarkRatioResponse extends ApiResponse<DefectRemarkRatio> {}
 
+export interface ProjectCardColor {
+  projectId: number;
+  projectName: string;
+  availableRiskLevels: string[];
+  projectCardColor: string;
+}
+
+export interface ProjectCardColorResponse extends ApiResponse<ProjectCardColor> {}
+
+export interface DefectStatus {
+  color: string;
+  count: number;
+}
+
+export interface DefectSeveritySummaryItem {
+  severity: string;
+  Severity_color: string;
+  total: number;
+  statuses: {
+    REOPEN: DefectStatus;
+    NEW: DefectStatus;
+    OPEN: DefectStatus;
+    FIXED: DefectStatus;
+    CLOSED: DefectStatus;
+    REJECTED: DefectStatus;
+    DUPLICATE: DefectStatus;
+  };
+}
+
+export interface DefectSeveritySummary {
+  projectId: number;
+  projectName: string;
+  totalDefects: number;
+  defectSummary: DefectSeveritySummaryItem[];
+}
+
+export interface DefectSeveritySummaryResponse extends ApiResponse<DefectSeveritySummary> {}
+
+export interface DefectType {
+  defectType: string;
+  defectCount: number;
+  percentage: number;
+}
+
+export interface DefectStatistics {
+  defectTypes: DefectType[];
+  totalDefectCount: number;
+  mostCommonDefectType: string;
+  mostCommonDefectCount: number;
+}
+
+export interface DefectStatisticsResponse extends ApiResponse<DefectStatistics> {}
+
+export interface DefectByModule {
+  moduleId: number;
+  name: string;
+  value: number;
+  percentage: number;
+}
+
+export interface DefectByModuleResponse extends ApiResponse<DefectByModule[]> {}
+
+export interface ReopenCountSummary {
+  label: string;
+  count: number;
+}
+
+export interface ReopenCountSummaryResponse extends ApiResponse<ReopenCountSummary[]> {}
+
+export interface DefectDetail {
+  defectId: number;
+  title: string;
+  assignee: string;
+  reporter: string;
+  release: string;
+}
+
+export interface DefectDetailsResponse extends ApiResponse<DefectDetail[]> {}
+
 export interface ApiError {
   status: 'failure';
   message: string;

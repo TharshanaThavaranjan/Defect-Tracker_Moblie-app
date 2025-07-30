@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList, Project } from '../types';
 import { projectsApi } from '../api/projects';
+import { ProjectCardColor } from '../api/types';
 
 const FILTERS = ['All Projects', 'High Risk', 'Medium Risk', 'Low Risk'];
 
@@ -112,30 +113,74 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     { id: 3, message: 'New comment on "Heart" project.' },
   ]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectColors, setProjectColors] = useState<{ [key: number]: ProjectCardColor }>({});
   const [loading, setLoading] = useState(true);
+  const [colorsLoading, setColorsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { userEmail } = route.params || {};
 
-  // Function to determine risk level based on project data
-  const getProjectRisk = (project: Project): string => {
-    // Simple risk calculation based on project dates and other factors
-    const startDate = new Date(project.startDate);
-    const endDate = new Date(project.endDate);
-    const now = new Date();
-    
-    // If project is overdue, it's high risk
-    if (now > endDate) {
-      return 'High Risk';
+  // Function to convert CSS gradient to React Native color
+  const getColorFromGradient = (gradientClass: string): string => {
+    if (gradientClass.includes('yellow')) {
+      return '#FFB300'; // Medium Risk - Yellow
+    } else if (gradientClass.includes('red')) {
+      return '#F44336'; // High Risk - Red
+    } else if (gradientClass.includes('green')) {
+      return '#43A047'; // Low Risk - Green
+    } else {
+      return '#43A047'; // Default to green
     }
-    
-    // If project is within 7 days of deadline, it's medium risk
-    const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysUntilDeadline <= 7) {
+  };
+
+  // Function to get risk level from gradient class
+  const getRiskFromGradient = (gradientClass: string): string => {
+    if (gradientClass.includes('yellow')) {
       return 'Medium Risk';
+    } else if (gradientClass.includes('red')) {
+      return 'High Risk';
+    } else if (gradientClass.includes('green')) {
+      return 'Low Risk';
+    } else {
+      return 'Low Risk';
     }
-    
-    // Otherwise, it's low risk
-    return 'Low Risk';
+  };
+
+  // Fetch project card colors from API
+  const fetchProjectColors = async (projectIds: number[]) => {
+    try {
+      setColorsLoading(true);
+      console.log('Fetching colors for project IDs:', projectIds);
+      
+      const colorPromises = projectIds.map(async (projectId) => {
+        try {
+          console.log(`Fetching color for project ID: ${projectId}`);
+          const response = await projectsApi.getProjectCardColor(projectId.toString());
+          console.log(`Color response for project ${projectId}:`, response);
+          
+          return { projectId, colorData: response.data };
+        } catch (err) {
+          console.warn(`Failed to fetch color for project ${projectId}:`, err);
+          return null;
+        }
+      });
+
+      const colorResults = await Promise.all(colorPromises);
+      const colorMap: { [key: number]: ProjectCardColor } = {};
+      
+      colorResults.forEach(result => {
+        if (result && result.colorData) {
+          colorMap[result.projectId] = result.colorData;
+          console.log(`Added color for project ${result.projectId}:`, result.colorData.projectCardColor);
+        }
+      });
+
+      console.log('Final color map:', colorMap);
+      setProjectColors(colorMap);
+    } catch (err) {
+      console.error('Error fetching project colors:', err);
+    } finally {
+      setColorsLoading(false);
+    }
   };
 
   // Fetch projects from API
@@ -145,6 +190,11 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
       setError(null);
       const response = await projectsApi.getProjects();
       setProjects(response.data);
+      
+      // Fetch colors for all projects using project IDs
+      const projectIds = response.data.map(project => project.id);
+      console.log('Project IDs for color fetching:', projectIds);
+      await fetchProjectColors(projectIds);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch projects');
       console.error('Error fetching projects:', err);
@@ -161,12 +211,47 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   };
 
-  // Transform API projects to display format
-  const transformedProjects = projects.map(project => ({
-    ...project,
-    name: project.projectName,
-    risk: getProjectRisk(project),
-  }));
+  // Transform API projects to display format with actual colors from API
+  const transformedProjects = projects.map(project => {
+    const colorData = projectColors[project.id];
+    console.log(`Processing project ${project.projectName} (ID: ${project.id}):`, colorData);
+    
+    let backgroundColor = '#43A047'; // Default to green
+    let risk = 'Low Risk'; // Default risk
+    
+    if (colorData) {
+      backgroundColor = getColorFromGradient(colorData.projectCardColor);
+      risk = getRiskFromGradient(colorData.projectCardColor);
+      console.log(`Using API color for ${project.projectName}: ${colorData.projectCardColor} -> ${backgroundColor} -> ${risk}`);
+    } else {
+      // Fallback to date-based risk calculation if no color data
+      const startDate = new Date(project.startDate);
+      const endDate = new Date(project.endDate);
+      const now = new Date();
+      
+      if (now > endDate) {
+        backgroundColor = '#F44336';
+        risk = 'High Risk';
+      } else {
+        const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysUntilDeadline <= 7) {
+          backgroundColor = '#FFB300';
+          risk = 'Medium Risk';
+        }
+      }
+      console.log(`Using fallback color for ${project.projectName}: ${backgroundColor} -> ${risk}`);
+    }
+    
+    const result = {
+      ...project,
+      name: project.projectName,
+      risk: risk,
+      backgroundColor: backgroundColor,
+    };
+    
+    console.log(`Final project ${project.projectName}:`, result);
+    return result;
+  });
 
   const filteredProjects =
     selectedFilter === 'All Projects'
@@ -206,11 +291,13 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   };
 
-  if (loading) {
+  if (loading || colorsLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Loading projects...</Text>
+        <Text style={styles.loadingText}>
+          {loading ? 'Loading projects...' : 'Loading project colors...'}
+        </Text>
       </View>
     );
   }
@@ -363,12 +450,10 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
           <View style={styles.projectsGrid}>
             {sortedProjects.map((project, idx) => {
-              const cardStyle =
-                project.risk === 'High Risk'
-                  ? styles.projectCardHigh
-                  : project.risk === 'Medium Risk'
-                  ? styles.projectCardMedium
-                  : styles.projectCardLow;
+              const cardStyle = {
+                backgroundColor: project.backgroundColor || '#43A047', // Default to green
+              };
+              
               return (
                 <TouchableOpacity
                   key={project.id || project.name + idx}

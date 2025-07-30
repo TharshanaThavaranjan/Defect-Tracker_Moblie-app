@@ -6,6 +6,7 @@ import Svg, { Path, Line, G, Circle, Text as SvgText, Polyline } from 'react-nat
 import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { projectsApi } from '../api/projects';
+import { ProjectCardColor, DefectSeveritySummary, DefectStatistics, DefectByModule, ReopenCountSummary, DefectDetail } from '../api/types';
 
 // Project metrics for each project
 const PROJECT_DENSITY: Record<string, number> = {
@@ -343,6 +344,11 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // State for project card color
+  const [projectColorData, setProjectColorData] = useState<ProjectCardColor | null>(null);
+  const [colorLoading, setColorLoading] = useState(false);
+  const [colorError, setColorError] = useState<string | null>(null);
+
   // State for defect density
   const [defectDensityData, setDefectDensityData] = useState<DefectDensity | null>(null);
   const [defectDensityLoading, setDefectDensityLoading] = useState(false);
@@ -358,6 +364,32 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [remarkRatioLoading, setRemarkRatioLoading] = useState(false);
   const [remarkRatioError, setRemarkRatioError] = useState<string | null>(null);
 
+  // State for defect severity summary
+  const [defectSeveritySummaryData, setDefectSeveritySummaryData] = useState<DefectSeveritySummary | null>(null);
+  const [defectSeveritySummaryLoading, setDefectSeveritySummaryLoading] = useState(false);
+  const [defectSeveritySummaryError, setDefectSeveritySummaryError] = useState<string | null>(null);
+
+  // State for defect statistics
+  const [defectStatisticsData, setDefectStatisticsData] = useState<DefectStatistics | null>(null);
+  const [defectStatisticsLoading, setDefectStatisticsLoading] = useState(false);
+  const [defectStatisticsError, setDefectStatisticsError] = useState<string | null>(null);
+
+  // State for defects by module
+  const [defectsByModuleApiData, setDefectsByModuleApiData] = useState<DefectByModule[] | null>(null);
+  const [defectsByModuleLoading, setDefectsByModuleLoading] = useState(false);
+  const [defectsByModuleError, setDefectsByModuleError] = useState<string | null>(null);
+
+  // State for reopen count summary
+  const [reopenCountSummaryData, setReopenCountSummaryData] = useState<ReopenCountSummary[] | null>(null);
+  const [reopenCountSummaryLoading, setReopenCountSummaryLoading] = useState(false);
+  const [reopenCountSummaryError, setReopenCountSummaryError] = useState<string | null>(null);
+
+  // State for defect details by reopen count
+  const [defectDetailsData, setDefectDetailsData] = useState<DefectDetail[] | null>(null);
+  const [defectDetailsLoading, setDefectDetailsLoading] = useState(false);
+  const [defectDetailsError, setDefectDetailsError] = useState<string | null>(null);
+  const [selectedReopenCount, setSelectedReopenCount] = useState<string>('2 times');
+
   // State for selected project and its defect density
   const [selectedProject, setSelectedProject] = useState(project);
   const [defectDensity, setDefectDensity] = useState(() => PROJECT_DENSITY[project.projectName] || 0);
@@ -366,7 +398,33 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [modalSeverityIndex, setModalSeverityIndex] = useState<number | null>(null);
   const [showReopenedTable, setShowReopenedTable] = useState(false);
 
-  // Function to determine risk level based on project data
+  // Function to get risk level from gradient class
+  const getRiskFromGradient = (gradientClass: string): string => {
+    if (gradientClass.includes('yellow')) {
+      return 'Medium';
+    } else if (gradientClass.includes('red')) {
+      return 'High';
+    } else if (gradientClass.includes('green')) {
+      return 'Low';
+    } else {
+      return 'Low';
+    }
+  };
+
+  // Function to get risk level text for display
+  const getRiskLevelText = (gradientClass: string): string => {
+    if (gradientClass.includes('yellow')) {
+      return 'Medium Risk';
+    } else if (gradientClass.includes('red')) {
+      return 'High Risk';
+    } else if (gradientClass.includes('green')) {
+      return 'Low Risk';
+    } else {
+      return 'Low Risk';
+    }
+  };
+
+  // Function to determine risk level based on project data (fallback)
   const getProjectRisk = (project: Project): string => {
     const startDate = new Date(project.startDate);
     const endDate = new Date(project.endDate);
@@ -382,6 +440,22 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     }
     
     return 'Low Risk';
+  };
+
+  // Fetch project card color from API
+  const fetchProjectCardColor = async (projectId: number) => {
+    try {
+      setColorLoading(true);
+      setColorError(null);
+      const response = await projectsApi.getProjectCardColor(projectId.toString());
+      setProjectColorData(response.data);
+      console.log('Project color data:', response.data);
+    } catch (err: any) {
+      setColorError(err.message || 'Failed to fetch project color');
+      console.error('Error fetching project color:', err);
+    } finally {
+      setColorLoading(false);
+    }
   };
 
   // Fetch projects from API
@@ -448,6 +522,92 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   };
 
+  // Fetch defect severity summary for selected project
+  const fetchDefectSeveritySummary = async (projectId: number) => {
+    try {
+      setDefectSeveritySummaryLoading(true);
+      setDefectSeveritySummaryError(null);
+      const response = await projectsApi.getDefectSeveritySummary(projectId);
+      setDefectSeveritySummaryData(response.data);
+      console.log('Defect severity summary data:', response.data);
+    } catch (err: any) {
+      setDefectSeveritySummaryError(err.message || 'Failed to fetch defect severity summary');
+      console.error('Error fetching defect severity summary:', err);
+    } finally {
+      setDefectSeveritySummaryLoading(false);
+    }
+  };
+
+  // Fetch defect statistics for selected project
+  const fetchDefectStatistics = async (projectId: number) => {
+    try {
+      setDefectStatisticsLoading(true);
+      setDefectStatisticsError(null);
+      const response = await projectsApi.getDefectStatistics(projectId);
+      setDefectStatisticsData(response.data);
+      console.log('Defect statistics data:', response.data);
+    } catch (err: any) {
+      setDefectStatisticsError(err.message || 'Failed to fetch defect type statistics');
+      console.error('Error fetching defect type statistics:', err);
+    } finally {
+      setDefectStatisticsLoading(false);
+    }
+  };
+
+  // Fetch defects by module for selected project
+  const fetchDefectsByModule = async (projectId: number) => {
+    try {
+      setDefectsByModuleLoading(true);
+      setDefectsByModuleError(null);
+      const response = await projectsApi.getDefectsByModule(projectId);
+      setDefectsByModuleApiData(response.data);
+      console.log('Defects by module data:', response.data);
+    } catch (err: any) {
+      setDefectsByModuleError(err.message || 'Failed to fetch defects by module');
+      console.error('Error fetching defects by module:', err);
+    } finally {
+      setDefectsByModuleLoading(false);
+    }
+  };
+
+  // Fetch reopen count summary for selected project
+  const fetchReopenCountSummary = async (projectId: number) => {
+    try {
+      setReopenCountSummaryLoading(true);
+      setReopenCountSummaryError(null);
+      const response = await projectsApi.getReopenCountSummary(projectId);
+      setReopenCountSummaryData(response.data);
+    } catch (err: any) {
+      setReopenCountSummaryError(err.message || 'Failed to fetch reopen count summary');
+      console.error('Error fetching reopen count summary:', err);
+    } finally {
+      setReopenCountSummaryLoading(false);
+    }
+  };
+
+  // Fetch defect details by reopen count for selected project
+  const fetchDefectDetails = async (projectId: number, reopenCount?: string) => {
+    try {
+      setDefectDetailsLoading(true);
+      setDefectDetailsError(null);
+      
+      let response;
+      if (reopenCount === 'More than 5 times') {
+        response = await projectsApi.getDefectDetailsMoreThanFive(projectId);
+      } else {
+        const count = parseInt(reopenCount?.replace(' times', '') || '2');
+        response = await projectsApi.getDefectDetailsByReopenCount(projectId, count);
+      }
+      
+      setDefectDetailsData(response.data);
+    } catch (err: any) {
+      setDefectDetailsError(err.message || 'Failed to fetch defect details');
+      console.error('Error fetching defect details:', err);
+    } finally {
+      setDefectDetailsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
   }, []);
@@ -458,6 +618,12 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       fetchDefectDensity(selectedProject.id);
       fetchDefectSeverityIndex(selectedProject.id);
       fetchDefectRemarkRatio(selectedProject.id);
+      fetchProjectCardColor(selectedProject.id);
+      fetchDefectSeveritySummary(selectedProject.id);
+      fetchDefectStatistics(selectedProject.id);
+      fetchDefectsByModule(selectedProject.id);
+      fetchReopenCountSummary(selectedProject.id);
+      fetchDefectDetails(selectedProject.id);
     } else {
       // Fallback to static data
       setDefectDensity(PROJECT_DENSITY[selectedProject.projectName] || 0);
@@ -731,27 +897,137 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       {/* Selected Project Card - STICKY */}
       <View style={styles.headerCard}>
         <Text style={styles.projectTitle}>{selectedProject.projectName}</Text>
+        {colorLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#2563eb" />
+            <Text style={styles.loadingText}>Loading risk level...</Text>
+          </View>
+        ) : colorError ? (
+          <Text style={styles.errorText}>Failed to load risk level</Text>
+        ) : projectColorData ? (
         <Text style={[
           styles.risk, 
-          getProjectRisk(selectedProject) === 'High Risk' ? styles.high : getProjectRisk(selectedProject) === 'Medium Risk' ? styles.medium : styles.low
+            getRiskLevelText(projectColorData.projectCardColor) === 'High Risk' ? styles.high : 
+            getRiskLevelText(projectColorData.projectCardColor) === 'Medium Risk' ? styles.medium : styles.low
         ]}>
-          {getProjectRisk(selectedProject)}
+            {getRiskLevelText(projectColorData.projectCardColor)}
         </Text>
+        ) : (
+          <Text style={[
+            styles.risk, 
+            (() => {
+              const startDate = new Date(selectedProject.startDate);
+              const endDate = new Date(selectedProject.endDate);
+              const now = new Date();
+              
+              if (now > endDate) {
+                return styles.high;
+              }
+              
+              const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysUntilDeadline <= 7) {
+                return styles.medium;
+              }
+              
+              return styles.low;
+            })()
+          ]}>
+            {(() => {
+              const startDate = new Date(selectedProject.startDate);
+              const endDate = new Date(selectedProject.endDate);
+              const now = new Date();
+              
+              if (now > endDate) {
+                return 'High Risk';
+              }
+              
+              const daysUntilDeadline = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysUntilDeadline <= 7) {
+                return 'Medium Risk';
+              }
+              
+              return 'Low Risk';
+            })()}
+          </Text>
+        )}
       </View>
       {/* Main Content */}
       <ScrollView contentContainerStyle={{ padding: 12 }}>
         {/* Defect Severity Breakdown Heading */}
         <Text style={styles.sectionHeading}>Defect Severity Breakdown</Text>
+        
+        {/* Total Defects Summary */}
+        {defectSeveritySummaryData && (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>Total Defects: {defectSeveritySummaryData.totalDefects}</Text>
+            <Text style={styles.summarySubtitle}>
+              {defectSeveritySummaryData.defectSummary.map(sev => `${sev.severity}: ${sev.total}`).join(' • ')}
+            </Text>
+          </View>
+        )}
+        
         {/* Defect Severity Breakdown */}
         <View style={{ marginBottom: 16 }}>
-          {MOCK_DATA.defectSeverityBreakdown.map((sev, idx) => {
-            const total = sev.statuses.reduce((sum, s) => sum + s.count, 0);
+          {defectSeveritySummaryLoading ? (
+            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+              <ActivityIndicator size="large" color="#2563eb" />
+              <Text style={{ marginTop: 12, color: '#666', fontSize: 16 }}>Loading defect severity breakdown...</Text>
+            </View>
+          ) : defectSeveritySummaryError ? (
+            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+              <Icon name="alert-circle" size={48} color="#f44336" />
+              <Text style={{ marginTop: 12, color: '#f44336', fontSize: 16, textAlign: 'center' }}>
+                {defectSeveritySummaryError}
+              </Text>
+              <TouchableOpacity 
+                style={{ marginTop: 12, backgroundColor: '#e0e7ff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+                onPress={() => selectedProject.id && fetchDefectSeveritySummary(selectedProject.id)}
+              >
+                <Text style={{ color: '#2563eb', fontSize: 14, fontWeight: 'bold' }}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : defectSeveritySummaryData ? (
+            defectSeveritySummaryData.defectSummary.map((sev, idx) => {
             // Prepare pie chart data for this severity
-            const pieData = sev.statuses.map((status) => ({
+              const pieData = Object.entries(sev.statuses).map(([statusName, statusData]) => ({
+                label: statusName,
+                value: statusData.count,
+                color: statusData.color,
+              })).filter(d => d.value > 0); // Only show statuses with count > 0
+              
+              return (
+                <View key={sev.severity} style={[styles.severityBreakdownCard, { borderColor: sev.Severity_color }]}> 
+                  <View style={styles.severityBreakdownHeader}>
+                    <Text style={[styles.severityBreakdownTitle, { color: sev.Severity_color }]}>Defects on {sev.severity}</Text>
+                    <Text style={styles.severityBreakdownTotal}>Total: {sev.total}</Text>
+                  </View>
+                  <View style={styles.severityBreakdownStatusList}>
+                    <View style={styles.severityBreakdownStatusGrid}>
+                      {Object.entries(sev.statuses).map(([statusName, statusData]) => (
+                        <View key={statusName} style={styles.severityBreakdownStatusItem}>
+                          <View style={[styles.statusDot, { backgroundColor: statusData.color }]} />
+                          <Text style={styles.statusName}>{statusName}</Text>
+                          <Text style={styles.statusCount}>{statusData.count}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                  <TouchableOpacity style={styles.viewChartBtn} onPress={() => { setModalSeverityIndex(idx); setModalVisible(true); }}>
+                    <Text style={styles.viewChartBtnText}>View Chart</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+          ) : (
+            // Fallback to mock data if API data is not available
+            MOCK_DATA.defectSeverityBreakdown.map((sev, idx) => {
+              const total = sev.statuses.reduce((sum, s: any) => sum + s.count, 0);
+              // Prepare pie chart data for this severity
+              const pieData = sev.statuses.map((status: any) => ({
               label: status.name,
               value: status.count,
               color: STATUS_COLORS[status.name as keyof typeof STATUS_COLORS] || '#888',
-            })).filter(d => d.value > 0); // Only show statuses with count > 0
+              })).filter((d: any) => d.value > 0); // Only show statuses with count > 0
             return (
               <View key={sev.label} style={[styles.severityBreakdownCard, { borderColor: sev.border }]}> 
                 <View style={styles.severityBreakdownHeader}>
@@ -774,7 +1050,8 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 </TouchableOpacity>
               </View>
             );
-          })}
+            })
+          )}
         </View>
         {/* Pie Chart Modal */}
         <Modal
@@ -787,12 +1064,26 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             <View style={{ backgroundColor: '#fff', borderRadius: 18, padding: 24, alignItems: 'center', minWidth: 280, maxWidth: '90%' }}>
               <Text style={{ fontWeight: 'bold', fontSize: 20, marginBottom: 12 }}>Defect Status Breakdown</Text>
               {modalSeverityIndex !== null && (() => {
-                const sev = MOCK_DATA.defectSeverityBreakdown[modalSeverityIndex];
-                const pieData = sev.statuses.map((status) => ({
+                let sev: any;
+                let pieData: any[];
+                
+                if (defectSeveritySummaryData) {
+                  sev = defectSeveritySummaryData.defectSummary[modalSeverityIndex];
+                  pieData = Object.entries(sev.statuses).map(([statusName, statusData]: [string, any]) => ({
+                    label: statusName,
+                    value: statusData.count,
+                    color: statusData.color,
+                  })).filter(d => d.value > 0);
+                } else {
+                  // Fallback to mock data
+                  sev = MOCK_DATA.defectSeverityBreakdown[modalSeverityIndex];
+                  pieData = sev.statuses.map((status: any) => ({
                   label: status.name,
                   value: status.count,
                   color: STATUS_COLORS[status.name as keyof typeof STATUS_COLORS] || '#888',
-                })).filter(d => d.value > 0);
+                  })).filter((d: any) => d.value > 0);
+                }
+                
                 return (
                   <>
                     <PieChart data={pieData.length > 0 ? pieData : [{ label: 'No Data', value: 1, color: '#eee' }]} radius={70} cx={80} cy={80} />
@@ -1091,31 +1382,101 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           {/* Defects Reopened Multiple Times */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects Reopened Multiple Times</Text>
-            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedReopenedLabel('2 times'); // default to first label, or let user pick
-                  setShowReopenedTable(true);
-                }}
-                style={{}}
-              >
-                <PieChart
-                  data={reopenedData}
-                  radius={88}
-                  cx={90}
-                  cy={90}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={{ marginTop: 10 }}>
-              {reopenedData.map((item, idx) => (
-                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                  <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
-                  <Text style={{ fontSize: 15 }}>{item.label}: {item.value} ({((item.value / reopenedData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1)}%)</Text>
+            
+            {reopenCountSummaryLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator size="large" color="#2563eb" />
+                <Text style={{ marginTop: 12, color: '#666', fontSize: 16 }}>Loading reopen count summary...</Text>
+              </View>
+            ) : reopenCountSummaryError ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Icon name="alert-circle" size={48} color="#f44336" />
+                <Text style={{ marginTop: 12, color: '#f44336', fontSize: 16, textAlign: 'center' }}>
+                  {reopenCountSummaryError}
+                </Text>
+                <TouchableOpacity 
+                  style={{ marginTop: 12, backgroundColor: '#e0e7ff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+                  onPress={() => selectedProject.id && fetchReopenCountSummary(selectedProject.id)}
+                >
+                  <Text style={{ color: '#2563eb', fontSize: 14, fontWeight: 'bold' }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : reopenCountSummaryData ? (
+              <>
+                <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      if (reopenCountSummaryData.length > 0) {
+                        setSelectedReopenCount(reopenCountSummaryData[0].label);
+                        setShowReopenedTable(true);
+                        fetchDefectDetails(selectedProject.id, reopenCountSummaryData[0].label);
+                      }
+                    }}
+                    style={{}}
+                  >
+                    <PieChart
+                      data={reopenCountSummaryData.map((item, idx) => ({
+                        label: item.label,
+                        value: item.count,
+                        color: ['#4285F4', '#00b894', '#fdcb6e', '#d63031', '#a29bfe', '#e17055', '#00bcd4', '#6c5ce7'][idx % 8],
+                      }))}
+                      radius={88}
+                      cx={90}
+                      cy={90}
+                    />
+                  </TouchableOpacity>
                 </View>
-              ))}
-            </View>
+                <View style={{ marginTop: 10 }}>
+                  {reopenCountSummaryData.map((item, idx) => {
+                    const total = reopenCountSummaryData.reduce((sum, d) => sum + d.count, 0);
+                    return (
+                      <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                        <View style={{ 
+                          width: 12, 
+                          height: 12, 
+                          backgroundColor: ['#4285F4', '#00b894', '#fdcb6e', '#d63031', '#a29bfe', '#e17055', '#00bcd4', '#6c5ce7'][idx % 8], 
+                          borderRadius: 6, 
+                          marginRight: 6 
+                        }} />
+                        <Text style={{ fontSize: 15 }}>
+                          {item.label}: {item.count} ({((item.count / total) * 100).toFixed(1)}%)
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            ) : (
+              // Fallback to mock data if API data is not available
+              <>
+                <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setSelectedReopenedLabel('2 times');
+                      setShowReopenedTable(true);
+                    }}
+                    style={{}}
+                  >
+                    <PieChart
+                      data={reopenedData}
+                      radius={88}
+                      cx={90}
+                      cy={90}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <View style={{ marginTop: 10 }}>
+                  {reopenedData.map((item, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                      <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
+                      <Text style={{ fontSize: 15 }}>{item.label}: {item.value} ({((item.value / reopenedData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1)}%)</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
           </View>
           {/* Modal for table */}
           <Modal
@@ -1133,20 +1494,42 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.reopenedTableModalTable}>
-                  <View style={styles.tableHeader}>
-                    <Text style={styles.tableHeaderCell}>Defect ID</Text>
-                    <Text style={styles.tableHeaderCell}>Reopened Counts</Text>
-                    <Text style={styles.tableHeaderCell}>Reporter</Text>
-                    <Text style={styles.tableHeaderCell}>Release</Text>
-                  </View>
-                  {(DEFECTS_REOPENED_DETAILS[selectedReopenedLabel || '2 times'] || []).map((row: { id: string; count: number; release: string; reporter: string }, idx: number) => (
-                    <View key={row.id + idx} style={styles.tableRow}>
-                      <Text style={styles.tableCell}>{row.id}</Text>
-                      <Text style={styles.tableCell}>{row.count}</Text>
-                      <Text style={styles.tableCell}>{row.reporter}</Text>
-                      <Text style={styles.tableCell}>{row.release}</Text>
+                  {defectDetailsLoading ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                      <ActivityIndicator size="small" color="#2563eb" />
+                      <Text style={{ marginTop: 8, color: '#666', fontSize: 14 }}>Loading defect details...</Text>
                     </View>
-                  ))}
+                  ) : defectDetailsError ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                      <Icon name="alert-circle" size={24} color="#f44336" />
+                      <Text style={{ marginTop: 8, color: '#f44336', fontSize: 14, textAlign: 'center' }}>
+                        {defectDetailsError}
+                      </Text>
+                    </View>
+                  ) : defectDetailsData ? (
+                    <>
+                      <View style={styles.tableHeader}>
+                        <Text style={styles.tableHeaderCell}>Defect ID</Text>
+                        <Text style={styles.tableHeaderCell}>Title</Text>
+                        <Text style={styles.tableHeaderCell}>Assignee</Text>
+                        <Text style={styles.tableHeaderCell}>Reporter</Text>
+                        <Text style={styles.tableHeaderCell}>Release</Text>
+                      </View>
+                      {defectDetailsData.map((defect, idx) => (
+                        <View key={defect.defectId + idx} style={styles.tableRow}>
+                          <Text style={styles.tableCell}>{defect.defectId}</Text>
+                          <Text style={styles.tableCell}>{defect.title}</Text>
+                          <Text style={styles.tableCell}>{defect.assignee}</Text>
+                          <Text style={styles.tableCell}>{defect.reporter}</Text>
+                          <Text style={styles.tableCell}>{defect.release}</Text>
+                        </View>
+                      ))}
+                    </>
+                  ) : (
+                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                      <Text style={{ color: '#888', fontSize: 14 }}>No defect details available</Text>
+                    </View>
+                  )}
                   {/* Add details below the table */}
                   <View style={{ marginTop: 16 }}>
                     <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#2563eb', marginBottom: 6 }}>
@@ -1169,6 +1552,76 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           {/* Defect Distribution by Type */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defect Distribution by Type</Text>
+            
+            {defectStatisticsLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator size="large" color="#2563eb" />
+                <Text style={{ marginTop: 12, color: '#666', fontSize: 16 }}>Loading defect type statistics...</Text>
+              </View>
+            ) : defectStatisticsError ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Icon name="alert-circle" size={48} color="#f44336" />
+                <Text style={{ marginTop: 12, color: '#f44336', fontSize: 16, textAlign: 'center' }}>
+                  {defectStatisticsError}
+                </Text>
+                <TouchableOpacity 
+                  style={{ marginTop: 12, backgroundColor: '#e0e7ff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+                  onPress={() => selectedProject.id && fetchDefectStatistics(selectedProject.id)}
+                >
+                  <Text style={{ color: '#2563eb', fontSize: 14, fontWeight: 'bold' }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : defectStatisticsData ? (
+              <>
+                <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+                  <PieChart 
+                    data={defectStatisticsData.defectTypes.map((type, idx) => ({
+                      label: type.defectType,
+                      value: type.defectCount,
+                      color: ['#4285F4', '#00b894', '#fdcb6e', '#d63031', '#a29bfe', '#e17055', '#00bcd4', '#6c5ce7'][idx % 8],
+                    }))} 
+                    radius={90} 
+                    cx={95} 
+                    cy={95} 
+                  />
+                </View>
+                <View style={{ marginTop: 10 }}>
+                  {defectStatisticsData.defectTypes.map((type, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                      <View style={{ 
+                        width: 12, 
+                        height: 12, 
+                        backgroundColor: ['#4285F4', '#00b894', '#fdcb6e', '#d63031', '#a29bfe', '#e17055', '#00bcd4', '#6c5ce7'][idx % 8], 
+                        borderRadius: 6, 
+                        marginRight: 6 
+                      }} />
+                      <Text style={{ fontSize: 15 }}>
+                        {type.defectType}: {type.defectCount} ({type.percentage.toFixed(1)}%)
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, borderTopWidth: 1, borderColor: '#eee', paddingTop: 12 }}>
+                  <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 20 }}>{defectStatisticsData.totalDefectCount}</Text>
+                    <Text style={{ fontSize: 13, color: '#444' }}>Total Defects</Text>
+                  </View>
+                  <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 20, color: '#4285F4' }}>
+                      {defectStatisticsData.mostCommonDefectCount}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#444' }}>
+                      Most Common{' '}
+                      <Text style={{ fontWeight: 'bold' }}>
+                        {defectStatisticsData.mostCommonDefectType}
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              // Fallback to mock data if API data is not available
+              <>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
               <PieChart data={defectTypeData} radius={90} cx={95} cy={95} />
         </View>
@@ -1202,6 +1655,8 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 </Text>
           </View>
         </View>
+              </>
+            )}
           </View>
           {/* Time to Find Defects */}
           <View style={sectionContainer}>
@@ -1220,1250 +1675,3475 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           {/* Defects by Module */}
           <View style={sectionContainer}>
             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Defects by Module</Text>
-            <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
-              <PieChart data={defectsByModuleData} radius={90} cx={95} cy={95} />
-            </View>
-            <View style={{ marginTop: 10 }}>
-              {defectsByModuleData.map((item, idx) => {
-                const total = defectsByModuleData.reduce((sum, d) => sum + d.value, 0);
-                return (
-                  <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                    <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
-                    <Text style={{ fontSize: 15 }}>
-                      {item.label}{' '}
-                      <Text style={{ fontWeight: 'bold' }}>{item.value}</Text>
-                      {' '}({((item.value / total) * 100).toFixed(2)}%)
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
+            
+            {defectsByModuleLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator size="large" color="#2563eb" />
+                <Text style={{ marginTop: 12, color: '#666', fontSize: 16 }}>Loading defects by module...</Text>
+              </View>
+            ) : defectsByModuleError ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Icon name="alert-circle" size={48} color="#f44336" />
+                <Text style={{ marginTop: 12, color: '#f44336', fontSize: 16, textAlign: 'center' }}>
+                  {defectsByModuleError}
+                </Text>
+                <TouchableOpacity 
+                  style={{ marginTop: 12, backgroundColor: '#e0e7ff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+                  onPress={() => selectedProject.id && fetchDefectsByModule(selectedProject.id)}
+                >
+                  <Text style={{ color: '#2563eb', fontSize: 14, fontWeight: 'bold' }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : defectsByModuleApiData ? (
+              <>
+                <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+                  <PieChart
+                    data={defectsByModuleApiData.map((mod, idx) => ({
+                      label: mod.name,
+                      value: mod.value,
+                      color: ['#4285F4', '#00b894', '#fdcb6e', '#d63031', '#a29bfe', '#e17055', '#00bcd4', '#6c5ce7'][idx % 8],
+                    }))}
+                    radius={90}
+                    cx={95}
+                    cy={95}
+                  />
+                </View>
+                <View style={{ marginTop: 10 }}>
+                  {defectsByModuleApiData.map((mod, idx) => (
+                    <View key={mod.moduleId} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                      <View style={{
+                        width: 12,
+                        height: 12,
+                        backgroundColor: ['#4285F4', '#00b894', '#fdcb6e', '#d63031', '#a29bfe', '#e17055', '#00bcd4', '#6c5ce7'][idx % 8],
+                        borderRadius: 6,
+                        marginRight: 6
+                      }} />
+                      <Text style={{ fontSize: 15 }}>
+                        {mod.name}{' '}
+                        <Text style={{ fontWeight: 'bold' }}>{mod.value}</Text>
+                        {' '}({mod.percentage.toFixed(2)}%)
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            ) : (
+              // Fallback to mock data if API data is not available
+              <>
+                <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: 8 }}>
+                  <PieChart data={defectsByModuleData} radius={90} cx={95} cy={95} />
+                </View>
+                <View style={{ marginTop: 10 }}>
+                  {defectsByModuleData.map((item, idx) => {
+                    const total = defectsByModuleData.reduce((sum, d) => sum + d.value, 0);
+                    return (
+                      <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                        <View style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: 6, marginRight: 6 }} />
+                        <Text style={{ fontSize: 15 }}>
+                          {item.label}{' '}
+                          <Text style={{ fontWeight: 'bold' }}>{item.value}</Text>
+                          {' '}({((item.value / total) * 100).toFixed(2)}%)
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </View>
-        </View>
-      </ScrollView>
-      {/* Footer with three icons */}
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        paddingVertical: 12,
-        borderTopWidth: 1,
-        borderColor: '#f0f1f6',
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        elevation: 8,
-        zIndex: 100,
-      }}>
-        <TouchableOpacity onPress={() => navigation.replace('Dashboard', { userEmail: 'admin' })} style={{ alignItems: 'center' }}>
-          <Feather name="grid" size={28} color="#2563eb" />
-          <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center' }}>Dashboard</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ alignItems: 'center' }}>
-          <Feather name="user" size={28} color="#2563eb" />
-          <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center' }}>Profile</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={{ alignItems: 'center' }}>
-          <Feather name="settings" size={28} color="#2563eb" />
-          <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center' }}>Settings</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f1f6',
-    elevation: 2,
-    zIndex: 10,
-  },
-  backBtn: {
-    marginRight: 4, // reduce margin
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#f3f6fd',
-  },
-  backIcon: {
-    fontSize: 20,
-    color: '#2563eb',
-    fontWeight: 'bold',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconBtn: {
-    marginRight: 10,
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: '#e0e7ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  appIconText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
-    letterSpacing: 1,
-  },
-  appName: {
-    fontWeight: 'bold',
-    fontSize: 18,
-    color: '#2563eb',
-    marginBottom: 0,
-  },
-  appSubtitle: {
-    fontSize: 11,
-    color: '#6c6c8a',
-    marginTop: -2,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e0e7ff',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  logoutText: {
-    color: '#2563eb',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  selectorCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    marginHorizontal: 0,
-    marginTop: 12,
-    marginBottom: 0,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: '#f0f1f6',
-    width: '100%',
-    alignSelf: 'center',
-  },
-  selectorLabel: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#222',
-    marginLeft: 8,
-  },
-  selectorScroll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 8,
-    paddingRight: 8,
-  },
-  selectorPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#f3f6fd',
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#e0e7ef',
-  },
-  selectorPillActive: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
-  selectorPillText: {
-    color: '#222',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  selectorPillTextActive: {
-    color: '#fff',
-  },
-  headerCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: '#f0f1f6',
-  },
-  projectTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#222',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  risk: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 12,
-    color: '#fff',
-    marginBottom: 2,
-    overflow: 'hidden',
-  },
-  high: { backgroundColor: '#F44336' },
-  medium: { backgroundColor: '#FFB300' },
-  low: { backgroundColor: '#43A047' },
-  sectionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-    gap: 10,
-  },
-  severityCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 2,
-    padding: 12,
-    alignItems: 'center',
-    marginHorizontal: 3,
-    minWidth: 90,
-    maxWidth: 140,
-  },
-  severityLabel: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  severityCount: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  severityDesc: {
-    fontSize: 11,
-    color: '#888',
-    textAlign: 'center',
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 12,
-    alignItems: 'center',
-    marginHorizontal: 3,
-    minWidth: 90,
-    maxWidth: 140,
-  },
-  metricTitle: {
-    fontWeight: 'bold',
-    fontSize: 13,
-    marginBottom: 6,
-    color: '#222',
-    textAlign: 'center',
-  },
-  gaugePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#f8d7da',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  gaugeValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#F44336',
-  },
-  gaugeLabel: {
-    fontSize: 10,
-    color: '#888',
-  },
-  vGaugePlaceholder: {
-    width: 30,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: '#ffe0b2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  vGaugeValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFB300',
-  },
-  ratioCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 8,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  ratioValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#F44336',
-  },
-  ratioLabel: {
-    fontSize: 12,
-    color: '#F44336',
-    fontWeight: 'bold',
-  },
-  chartCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 12,
-    alignItems: 'center',
-    marginHorizontal: 3,
-    minWidth: 120,
-    maxWidth: 300,
-    marginBottom: 14,
-  },
-  piePlaceholder: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#e3e9fd',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  pieLabel: {
-    fontSize: 13,
-    color: '#2563eb',
-    fontWeight: 'bold',
-  },
-  lineCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 12,
-    alignItems: 'center',
-    marginHorizontal: 3,
-    minWidth: 120,
-    maxWidth: 300,
-    marginBottom: 14,
-  },
-  linePlaceholder: {
-    width: 120,
-    height: 40,
-    backgroundColor: '#e0f2f1',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  lineLabel: {
-    fontSize: 13,
-    color: '#43A047',
-    fontWeight: 'bold',
-  },
-  severityBreakdownCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 2,
-    padding: 16,
-    marginHorizontal: 0,
-    marginBottom: 16,
-    minWidth: 200,
-    maxWidth: 500,
-    borderColor: '#eee',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    alignSelf: 'stretch',
-  },
-  severityBreakdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    paddingBottom: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f1f6',
-  },
-  severityBreakdownTitle: {
-    fontWeight: 'bold',
-    fontSize: 17,
-    letterSpacing: 0.2,
-  },
-  severityBreakdownTotal: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#444',
-  },
-  severityBreakdownStatusList: {
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  severityBreakdownStatusGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    gap: 10, // Add some space between items
-  },
-  severityBreakdownStatusItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafd',
-    borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 6,
-    width: '45%', // Make items take roughly half the width
-    marginBottom: 6,
-  },
-  statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  statusName: {
-    fontSize: 14,
-    color: '#222',
-    width: 75,
-    fontWeight: '500',
-  },
-  statusCount: {
-    fontSize: 14,
-    color: '#444',
-    marginLeft: 2,
-    fontWeight: 'bold',
-  },
-  viewChartBtn: {
-    backgroundColor: '#e8f0fe',
-    borderRadius: 6,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 2,
-  },
-  viewChartBtnText: {
-    color: '#2563eb',
-    fontWeight: 'bold',
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  metricBigCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    borderWidth: 1,
-    borderColor: '#f0f1f6',
-    alignItems: 'flex-start',
-  },
-  metricBigTitle: {
-    fontWeight: 'bold',
-    fontSize: 17,
-    color: '#222',
-    marginBottom: 12,
-  },
-  metricBigContent: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  metricBigLabel: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#222',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  metricBigSubLabel: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  // Gauge web style placeholder
-  gaugeWebPlaceholder: {
-    width: 120,
-    height: 70,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    position: 'relative',
-    marginTop: 8,
-  },
-  gaugeWebArc: {
-    position: 'absolute',
-    bottom: 0,
-    width: 120,
-    height: 60,
-    borderTopLeftRadius: 60,
-    borderTopRightRadius: 60,
-    borderWidth: 8,
-    borderColor: '#ddd',
-    borderBottomWidth: 0,
-    backgroundColor: 'transparent',
-    zIndex: 1,
-  },
-  gaugeWebNeedle: {
-    position: 'absolute',
-    bottom: 10,
-    left: 60,
-    width: 2,
-    height: 40,
-    backgroundColor: '#222',
-    zIndex: 2,
-    borderRadius: 1,
-  },
-  gaugeWebMin: {
-    position: 'absolute',
-    left: 0,
-    bottom: 0,
-    fontSize: 12,
-    color: '#222',
-  },
-  gaugeWebMid: {
-    position: 'absolute',
-    left: 50,
-    bottom: 0,
-    fontSize: 12,
-    color: '#222',
-  },
-  gaugeWebMax: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    fontSize: 12,
-    color: '#222',
-  },
-  // Severity bar
-  severityBarWrap: {
-    width: 40,
-    height: 100,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    position: 'relative',
-    marginBottom: 6,
-  },
-  severityBarTrack: {
-    position: 'absolute',
-    left: 18,
-    bottom: 0,
-    width: 8,
-    height: 100,
-    backgroundColor: '#f8d7da',
-    borderRadius: 4,
-  },
-  severityBarFill: {
-    position: 'absolute',
-    left: 18,
-    bottom: 0,
-    width: 8,
-    backgroundColor: '#F44336',
-    borderRadius: 4,
-    zIndex: 2,
-  },
-  severityBarValue: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: 40,
-    textAlign: 'center',
-    fontWeight: 'bold',
-    fontSize: 24,
-    color: '#F44336',
-    zIndex: 3,
-  },
-  // Remark ratio
-  remarkRatioCard: {
-    backgroundColor: '#fff4f4',
-    borderRadius: 14,
-    padding: 18,
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 6,
-    marginBottom: 2,
-    borderWidth: 1,
-    borderColor: '#fde0e0',
-  },
-  remarkRatioValue: {
-    fontWeight: 'bold',
-    fontSize: 32,
-    color: '#222',
-    marginBottom: 2,
-  },
-  remarkRatioLabel: {
-    fontSize: 15,
-    color: '#444',
-    marginBottom: 6,
-  },
-  remarkRatioBadge: {
-    backgroundColor: '#fde0e0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 8,
-  },
-  remarkRatioBadgeText: {
-    color: '#F44336',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  remarkRatioBarWrap: {
-    width: '100%',
-    height: 12,
-    backgroundColor: '#fde0e0',
-    borderRadius: 6,
-    marginTop: 4,
-    marginBottom: 2,
-    justifyContent: 'center',
-  },
-  remarkRatioBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: '#F44336',
-    borderRadius: 6,
-  },
-  remarkRatioBarLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 2,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-    gap: 12,
-  },
-  metricColumn: {
-    flexDirection: 'column',
-    gap: 18,
-    marginBottom: 18,
-  },
-  metricCardGauge: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 16,
-    marginHorizontal: 3,
-    minWidth: 120,
-    maxWidth: 300,
-  },
-  metricCardBar: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 16,
-    marginHorizontal: 3,
-    minWidth: 120,
-    maxWidth: 300,
-  },
-  metricTitleLeft: {
-    fontWeight: 'bold',
-    fontSize: 15,
-    marginBottom: 8,
-    color: '#222',
-    textAlign: 'left',
-    alignSelf: 'flex-start',
-  },
-  metricLabelCenter: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 4,
-    color: '#222',
-    textAlign: 'center',
-    alignSelf: 'center',
-  },
-  metricValue: {
-    color: '#F44336',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  gaugeContent: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  gaugeContainer: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  gaugeBase: {
-    width: 90,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    position: 'relative',
-  },
-  gaugeArcGreen: {
-    position: 'absolute',
-    width: 90,
-    height: 45,
-    borderTopLeftRadius: 90,
-    borderTopRightRadius: 0,
-    borderWidth: 8,
-    borderColor: 'green',
-    borderRightWidth: 0,
-    borderBottomWidth: 0,
-    top: 0,
-    left: 0,
-    zIndex: 1,
-  },
-  gaugeArcYellow: {
-    position: 'absolute',
-    width: 90,
-    height: 45,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderWidth: 8,
-    borderColor: 'gold',
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
-    borderBottomWidth: 0,
-    top: 0,
-    left: 30,
-    zIndex: 2,
-    transform: [{ rotate: '30deg' }],
-  },
-  gaugeArcRed: {
-    position: 'absolute',
-    width: 90,
-    height: 45,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 90,
-    borderWidth: 8,
-    borderColor: '#F44336',
-    borderLeftWidth: 0,
-    borderBottomWidth: 0,
-    top: 0,
-    left: 60,
-    zIndex: 3,
-    transform: [{ rotate: '60deg' }],
-  },
-  gaugePointer: {
-    position: 'absolute',
-    width: 2,
-    height: 38,
-    backgroundColor: '#222',
-    bottom: 6,
-    left: 44,
-    borderRadius: 2,
-    zIndex: 10,
-    transform: [{ rotate: '-90deg' }],
-  },
-  gaugeLabelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 90,
-    marginTop: 2,
-  },
-  severityIndexContent: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  barContainerWeb: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginTop: 8,
-    marginBottom: 4,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  barTrackWeb: {
-    width: 28,
-    height: 90,
-    backgroundColor: '#f0f1f6',
-    borderRadius: 14,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginRight: 12,
-    overflow: 'hidden',
-  },
-  barFillWeb: {
-    width: 28,
-    backgroundColor: '#F44336',
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-  },
-  barValueWeb: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#F44336',
-    marginLeft: 8,
-    alignSelf: 'center',
-  },
-  barLabelWeb: {
-    fontSize: 12,
-    color: '#444',
-    marginTop: 4,
-    textAlign: 'center',
-    maxWidth: 160,
-  },
-  ratioBar: {
-    width: '100%',
-    height: 12,
-    backgroundColor: '#fde0e0',
-    borderRadius: 6,
-    marginTop: 4,
-    marginBottom: 2,
-    justifyContent: 'center',
-  },
-  ratioBarFill: {
-    width: '100%',
-    height: 8,
-    backgroundColor: '#F44336',
-    borderRadius: 6,
-  },
-  ratioBarLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 2,
-  },
-  ratioBarLabelNum: {
-    fontSize: 12,
-    color: '#888',
-  },
-  metricColumnFull: {
-    flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    gap: 18,
-    marginBottom: 18,
-  },
-  metricCardFull: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: '#d1d5db', // slightly darker for visibility
-    padding: 16,
-    marginBottom: 18,
-    minHeight: 0,
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  sectionHeading: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#222',
-    marginBottom: 10,
-    marginLeft: 2,
-    marginTop: 8,
-  },
-  halfGaugeContainer: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  halfGaugeBase: {
-    width: 140,
-    height: 70,
-    borderTopLeftRadius: 70,
-    borderTopRightRadius: 70,
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  halfGaugeGreen: {
-    position: 'absolute',
-    width: 140,
-    height: 70,
-    borderTopLeftRadius: 70,
-    borderTopRightRadius: 0,
-    backgroundColor: 'green',
-    left: 0,
-    top: 0,
-    zIndex: 1,
-    transform: [{ skewX: '-30deg' }],
-  },
-  halfGaugeYellow: {
-    position: 'absolute',
-    width: 140,
-    height: 70,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    backgroundColor: 'gold',
-    left: 46,
-    top: 0,
-    zIndex: 2,
-    transform: [{ skewX: '0deg' }],
-  },
-  halfGaugeRed: {
-    position: 'absolute',
-    width: 140,
-    height: 70,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 70,
-    backgroundColor: '#F44336',
-    left: 93,
-    top: 0,
-    zIndex: 3,
-    transform: [{ skewX: '30deg' }],
-  },
-  halfGaugePointer: {
-    position: 'absolute',
-    width: 2,
-    height: 60,
-    backgroundColor: '#222',
-    bottom: 0,
-    left: 69,
-    borderRadius: 2,
-    zIndex: 10,
-    transform: [{ rotate: '-90deg' }],
-  },
-  speedometerContainer: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  speedometerHalfCircle: {
-    width: 160,
-    height: 80,
-    borderTopLeftRadius: 80,
-    borderTopRightRadius: 80,
-    overflow: 'hidden',
-    backgroundColor: '#eee',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  speedometerGreen: {
-    position: 'absolute',
-    width: 160,
-    height: 80,
-    borderTopLeftRadius: 80,
-    borderTopRightRadius: 0,
-    backgroundColor: 'green',
-    left: 0,
-    top: 0,
-    zIndex: 1,
-    transform: [{ skewX: '-30deg' }],
-  },
-  speedometerYellow: {
-    position: 'absolute',
-    width: 160,
-    height: 80,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    backgroundColor: 'gold',
-    left: 53,
-    top: 0,
-    zIndex: 2,
-    transform: [{ skewX: '0deg' }],
-  },
-  speedometerRed: {
-    position: 'absolute',
-    width: 160,
-    height: 80,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 80,
-    backgroundColor: '#F44336',
-    left: 106,
-    top: 0,
-    zIndex: 3,
-    transform: [{ skewX: '30deg' }],
-  },
-  speedometerPointer: {
-    position: 'absolute',
-    width: 4,
-    height: 68,
-    backgroundColor: '#222',
-    bottom: 0,
-    left: 78,
-    borderRadius: 2,
-    zIndex: 10,
-    transform: [{ rotate: '-90deg' }],
-  },
-  speedometerTicks: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 160,
-    marginTop: 2,
-  },
-  tableContainer: {
-    borderWidth: 1,
-    borderColor: '#e0e7ef',
-    borderRadius: 8,
-    marginBottom: 12,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#e0e7ff',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  tableHeaderCell: {
-    flex: 1,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f1f6',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  tableCell: {
-    flex: 1,
-    color: '#222',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  centerModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  centerModalTitle: {
-    fontWeight: 'bold',
-    fontSize: 20,
-    color: '#2563eb',
-  },
-  centerModalClose: {
-    fontSize: 22,
-    color: '#888',
-    padding: 4,
-  },
-  centerModalItemText: {
-    color: '#222',
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  reopenedTableModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 22,
-    minWidth: 320,
-    maxWidth: '90%',
-    elevation: 10,
-    alignItems: 'center',
-  },
-  reopenedTableModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 10,
-  },
-  reopenedTableModalTitle: {
-    fontWeight: 'bold',
-    fontSize: 18,
-    color: '#2563eb',
-  },
-  reopenedTableModalClose: {
-    fontSize: 22,
-    color: '#888',
-    padding: 4,
-  },
-  reopenedTableModalTable: {
-    width: '100%',
-    marginTop: 8,
-  },
-  bellContainer: {
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#F44336',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  notificationBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  notificationItemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  notificationIcon: {
-    marginRight: 8,
-  },
-  notificationTime: {
-    fontSize: 12,
-    color: '#888',
-  },
-  noNotifications: {
-    fontSize: 16,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  centerModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    minWidth: 340,
-    maxWidth: '90%',
-    elevation: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e0e7ff',
-  },
-  centerModalList: {
-    width: '100%',
-    marginTop: 8,
-  },
-  centerModalItem: {
-    backgroundColor: '#f8fafd',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  modalTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  modalTitleIcon: {
-    marginRight: 8,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  emptyNotificationContainer: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  emptyNotificationSubtitle: {
-    fontSize: 14,
-    color: '#888',
-    marginTop: 4,
-  },
-  notificationIconContainer: {
-    marginRight: 8,
-  },
-  swipeHint: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
-  },
-  loadingText: {
-    color: '#2563eb',
-    fontSize: 14,
-    marginLeft: 5,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
-  },
-  errorText: {
-    color: '#f44336',
-    fontSize: 14,
-    marginLeft: 5,
-  },
-  retryButton: {
-    backgroundColor: '#e0e7ff',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginLeft: 10,
-  },
-  retryButtonText: {
-    color: '#2563eb',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  emptyText: {
-    color: '#888',
-    fontSize: 14,
-  },
-});
-
-export default ProjectDetailScreen;
+          {/* Reopen Count Summary */}
+          <View style={sectionContainer}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Reopen Count Summary</Text>
+            
+            {reopenCountSummaryLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator size="large" color="#2563eb" />
+                <Text style={{ marginTop: 12, color: '#666', fontSize: 16 }}>Loading reopen count summary...</Text>
+              </View>
+            ) : reopenCountSummaryError ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Icon name="alert-circle" size={48} color="#f44336" />
+                <Text style={{ marginTop: 12, color: '#f44336', fontSize: 16, textAlign: 'center' }}>
+                  {reopenCountSummaryError}
+                </Text>
+                <TouchableOpacity 
+                  style={{ marginTop: 12, backgroundColor: '#e0e7ff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+                  onPress={() => selectedProject.id && fetchReopenCountSummary(selectedProject.id)}
+                >
+                  <Text style={{ color: '#2563eb', fontSize: 14, fontWeight: 'bold' }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : reopenCountSummaryData ? (
+              <>
+                {reopenCountSummaryData.map((summary, idx) => (
+                  <View key={idx} style={styles.metricCard}>
+                    <Text style={styles.metricTitle}>{summary.label}</Text>
+                    <View style={styles.metricBigCard}>
+                      <Text style={styles.metricBigTitle}>{summary.totalDefects}</Text>
+                      <Text style={styles.metricBigContent}>
+                        <Text style={styles.metricBigLabel}>Defects</Text>
+                        <Text style={styles.metricBigSubLabel}>{summary.defects}</Text>
+                      </Text>
+                    </View>
+                    <View style={styles.metricCardGauge}>
+                      <Text style={styles.metricTitleLeft}>Defect Severity</Text>
+                      <View style={styles.gaugeContent}>
+                        <View style={styles.gaugeContainer}>
+                          <View style={styles.gaugeBase}>
+                            <View style={styles.gaugeArcGreen} />
+                            <View style={styles.gaugeArcYellow} />
+                            <View style={styles.gaugeArcRed} />
+                            <View style={styles.gaugePointer} />
+                          </View>
+                          <View style={styles.gaugeLabelsRow}>
+                            <Text style={styles.severityIndexContent}>
+                              <Text style={styles.metricValue}>{summary.severityIndex}</Text>
+                              <Text style={styles.metricLabelCenter}>Severity Index</Text>
+                            </Text>
+                            <Text style={styles.speedometerContainer}>
+                              <View style={styles.speedometerHalfCircle}>
+                                <View style={styles.speedometerGreen} />
+                                <View style={styles.speedometerYellow} />
+                                <View style={styles.speedometerRed} />
+                                <View style={styles.speedometerPointer} />
+                              </View>
+                              <View style={styles.speedometerTicks}>
+                                <Text style={styles.speedometerTicks}>{summary.severityBreakdown.map(sev => `${sev.count} (${sev.percentage.toFixed(1)}%)`).join(' ')}</Text>
+                              </View>
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Severity</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.severityBreakdown.reduce((sum, sev) => sum + sev.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Type</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectTypes.reduce((sum, type) => sum + type.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Module</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByModule.reduce((sum, mod) => sum + mod.value, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRelease.reduce((sum, release) => sum + release.value, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemark.reduce((sum, remark) => sum + remark.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolution.reduce((sum, resolution) => sum + resolution.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Priority</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByPriority.reduce((sum, priority) => sum + priority.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Category</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByCategory.reduce((sum, category) => sum + category.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Release Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReleaseDate.reduce((sum, releaseDate) => sum + releaseDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Resolution Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByResolutionDate.reduce((sum, resolutionDate) => sum + resolutionDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatusDate.reduce((sum, statusDate) => sum + statusDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Remark Date</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByRemarkDate.reduce((sum, remarkDate) => sum + remarkDate.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Assignee</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByAssignee.reduce((sum, assignee) => sum + assignee.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Reporter</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByReporter.reduce((sum, reporter) => sum + reporter.count, 0)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.metricCardBar}>
+                      <Text style={styles.metricTitleLeft}>Defects by Status</Text>
+                      <View style={styles.barContainerWeb}>
+                        <View style={styles.barTrackWeb}>
+                          <View style={styles.barFillWeb} />
+                        </View>
+                        <View style={styles.barValueWeb}>
+                          <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
+                        </View>
+                      </View>
