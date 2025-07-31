@@ -5147,3 +5147,662 @@ const ProjectDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                           <Text style={styles.barLabelWeb}>{summary.defectsByStatus.reduce((sum, status) => sum + status.count, 0)}</Text>
                         </View>
                       </View>
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : (
+              // Fallback to mock data
+              MOCK_DATA.reopened.map((item, idx) => (
+                <View key={idx} style={styles.metricCard}>
+                  <Text style={styles.metricTitle}>{item.label}</Text>
+                  <View style={styles.metricBigCard}>
+                    <Text style={styles.metricBigTitle}>{item.value}</Text>
+                    <Text style={styles.metricBigContent}>
+                      <Text style={styles.metricBigLabel}>Defects</Text>
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  // Header styles
+  topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backBtn: {
+    marginRight: 12,
+    padding: 8,
+  },
+  backIcon: {
+    fontSize: 24,
+    color: '#2563eb',
+  },
+  appIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2563eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  appIconText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  appName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  appSubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  iconBtn: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  logoutBtn: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  bellContainer: {
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
+  // Project selector styles
+  selectorCard: {
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  selectorLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  selectorScroll: {
+    paddingVertical: 4,
+  },
+  selectorPill: {
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  selectorPillActive: {
+    backgroundColor: '#2563eb',
+  },
+  selectorPillText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  selectorPillTextActive: {
+    color: '#fff',
+  },
+
+  // Header card styles
+  headerCard: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  projectTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  risk: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  high: {
+    color: '#ef4444',
+  },
+  medium: {
+    color: '#f59e0b',
+  },
+  low: {
+    color: '#10b981',
+  },
+
+  // Loading and error states
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: '#6b7280',
+    fontSize: 14,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    marginLeft: 8,
+    color: '#ef4444',
+    fontSize: 14,
+  },
+  retryButton: {
+    marginLeft: 8,
+    backgroundColor: '#e0e7ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  retryButtonText: {
+    color: '#2563eb',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyText: {
+    color: '#6b7280',
+    fontSize: 14,
+  },
+
+  // Section styles
+  sectionHeading: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 16,
+  },
+
+  // Summary card styles
+  summaryCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  summarySubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+
+  // Severity breakdown styles
+  severityBreakdownCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  severityBreakdownHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  severityBreakdownTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  severityBreakdownTotal: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  severityBreakdownStatusList: {
+    marginBottom: 12,
+  },
+  severityBreakdownStatusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  severityBreakdownStatusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    marginBottom: 8,
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  statusName: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+  },
+  statusCount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  viewChartBtn: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  viewChartBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Metric styles
+  metricColumnFull: {
+    marginBottom: 16,
+  },
+  metricCardFull: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  metricCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  metricTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 12,
+  },
+  metricBigCard: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  metricBigTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  metricBigContent: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  metricBigLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  metricBigSubLabel: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginLeft: 4,
+  },
+  metricTitleLeft: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+
+  // Gauge styles
+  metricCardGauge: {
+    marginBottom: 16,
+  },
+  gaugeContent: {
+    alignItems: 'center',
+  },
+  gaugeContainer: {
+    alignItems: 'center',
+  },
+  gaugeBase: {
+    width: 120,
+    height: 60,
+    position: 'relative',
+  },
+  gaugeArcGreen: {
+    position: 'absolute',
+    width: 120,
+    height: 60,
+    borderTopLeftRadius: 60,
+    borderTopRightRadius: 60,
+    borderWidth: 8,
+    borderColor: '#10b981',
+    borderBottomWidth: 0,
+  },
+  gaugeArcYellow: {
+    position: 'absolute',
+    width: 120,
+    height: 60,
+    borderTopLeftRadius: 60,
+    borderTopRightRadius: 60,
+    borderWidth: 8,
+    borderColor: '#f59e0b',
+    borderBottomWidth: 0,
+  },
+  gaugeArcRed: {
+    position: 'absolute',
+    width: 120,
+    height: 60,
+    borderTopLeftRadius: 60,
+    borderTopRightRadius: 60,
+    borderWidth: 8,
+    borderColor: '#ef4444',
+    borderBottomWidth: 0,
+  },
+  gaugePointer: {
+    position: 'absolute',
+    width: 2,
+    height: 50,
+    backgroundColor: '#1f2937',
+    left: 59,
+    top: 5,
+    transformOrigin: 'bottom',
+  },
+  gaugeLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  severityIndexContent: {
+    alignItems: 'center',
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  metricLabelCenter: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  speedometerContainer: {
+    alignItems: 'center',
+  },
+  speedometerHalfCircle: {
+    width: 80,
+    height: 40,
+    position: 'relative',
+  },
+  speedometerGreen: {
+    position: 'absolute',
+    width: 80,
+    height: 40,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    borderWidth: 6,
+    borderColor: '#10b981',
+    borderBottomWidth: 0,
+  },
+  speedometerYellow: {
+    position: 'absolute',
+    width: 80,
+    height: 40,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    borderWidth: 6,
+    borderColor: '#f59e0b',
+    borderBottomWidth: 0,
+  },
+  speedometerRed: {
+    position: 'absolute',
+    width: 80,
+    height: 40,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    borderWidth: 6,
+    borderColor: '#ef4444',
+    borderBottomWidth: 0,
+  },
+  speedometerPointer: {
+    position: 'absolute',
+    width: 1,
+    height: 35,
+    backgroundColor: '#1f2937',
+    left: 39.5,
+    top: 2,
+  },
+  speedometerTicks: {
+    fontSize: 10,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+
+  // Bar chart styles
+  metricCardBar: {
+    marginBottom: 16,
+  },
+  barContainerWeb: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  barTrackWeb: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  barFillWeb: {
+    height: 8,
+    backgroundColor: '#2563eb',
+    borderRadius: 4,
+    width: '70%',
+  },
+  barValueWeb: {
+    minWidth: 40,
+  },
+  barLabelWeb: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    textAlign: 'right',
+  },
+
+  // Modal styles
+  centerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    maxWidth: '90%',
+    maxHeight: '80%',
+    minWidth: 300,
+  },
+  centerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalTitleIcon: {
+    marginRight: 8,
+  },
+  centerModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  centerModalList: {
+    maxHeight: 400,
+  },
+  centerModalItem: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2563eb',
+  },
+  notificationItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  notificationIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#e0e7ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  centerModalItemText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  emptyNotificationContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noNotifications: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginTop: 16,
+  },
+  emptyNotificationSubtitle: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginTop: 4,
+  },
+  swipeHint: {
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+
+  // Table styles
+  tableContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginTop: 12,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f3f4f6',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  tableHeaderCell: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#374151',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  tableCell: {
+    flex: 1,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+});
+
+export default ProjectDetailScreen;
